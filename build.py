@@ -45,7 +45,9 @@ def cats(desc):
     return m.group(1).split(",") if m else []
 
 def classify(title, c):
-    if not title.startswith("DIRECTO"): return None
+    # DIRECTO = emisión en directo confirmada; "TBC ..." = franja de directo de Movistar Plus+
+    # cuyos partidos aún no se han anunciado (pasa en torneos de tenis los días siguientes)
+    if not (title.startswith("DIRECTO") or title.startswith("TBC ")): return None
     if "Programa deportes" in c or "Programa Deportivo" in c: return None
     if "Fútbol" in c and re.search(r"LALIGA (EA SPORTS|HYPERMOTION)", title): return "laliga"
     if "Fútbol" in c and "UEFA Champions League" in title: return "champions"
@@ -86,7 +88,8 @@ def main(path):
         if not sport: continue
         ev, rnd, comp, vo = parse_title(title)
         key = (sport, start[:16], ev.lower())
-        e = events.setdefault(key, {"sport": sport, "s": start, "e": stop, "ev": ev, "rnd": rnd, "comp": comp, "ch": []})
+        e = events.setdefault(key, {"sport": sport, "s": start, "e": stop, "ev": ev, "rnd": rnd, "comp": comp, "ch": [],
+                                    "tbc": ev == "Partidos por confirmar"})
         if "BAR" in ch: continue  # canales para hostelería
         name, url = app_for(ch)
         e["ch"].append({"c": nice_channel(ch), "app": name, "url": url, "vo": vo})

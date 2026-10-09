@@ -27,7 +27,7 @@ Solo usa la biblioteca estándar de Python 3.
 
 ## Cómo se clasifican las emisiones
 
-- Solo cuentan los programas cuyo título empieza por `DIRECTO` (se descartan reposiciones, previas y magacines).
+- Solo cuentan los programas cuyo título empieza por `DIRECTO` (se descartan reposiciones, previas y magacines) y las franjas `TBC` de Movistar Plus+, que son directos cuyos partidos aún no se han anunciado (aparecen como «Partidos por confirmar»).
 - LaLiga: categoría *Fútbol* y título con `LALIGA EA SPORTS` o `LALIGA HYPERMOTION`.
 - Champions: categoría *Fútbol* y título con `UEFA Champions League`.
 - Ciclismo / Tenis: por la categoría de la guía.

@@ -72,6 +72,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 @media (prefers-reduced-motion:reduce){.status.live::before{animation:none}}
 .body{min-width:0;display:grid;gap:6px}
 .title{font-weight:600;font-size:1.08rem;line-height:1.25}
+.title.tbc{font-style:italic;color:var(--muted)}
 .sub{color:var(--muted);font-size:.86rem}
 .sub .sp{color:var(--c);font-weight:600}
 .where{display:flex;flex-wrap:wrap;gap:6px}
@@ -243,7 +244,7 @@ function renderAgenda(){
       return `<span class="ch"><strong>${esc(c.c)}</strong>${c.vo?'<span class="vo">VO</span>':""}${link}</span>`}).join("");
     return `<article class="ev${past?" past":""}" style="--c:${sp.c}">
       <div><div class="time">${hhmm(e.s)}</div><div class="status${live?" live":""}">${live?"En directo":past?"Finalizado":"Hasta "+hhmm(e.e)}</div></div>
-      <div class="body"><div class="title">${esc(e.ev)}</div><div class="sub"><span class="sp">${sp.short||sp.name}</span> · ${sub}</div><div class="where">${chs}</div></div>
+      <div class="body"><div class="title${e.tbc?" tbc":""}">${esc(e.ev)}</div><div class="sub"><span class="sp">${sp.short||sp.name}</span> · ${sub}</div><div class="where">${chs}</div></div>
     </article>`}).join("");
 }
 
