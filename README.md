@@ -14,6 +14,7 @@ Página web con dos vistas:
 | `index.html` | La página (HTML, CSS y JS en un único archivo). Lee `datos.json`. |
 | `build.py` | Descarga la guía XMLTV pública de [EPG dobleM](https://github.com/davidmuma/EPG_dobleM) y genera `datos.json`. |
 | `datos.json` | Datos ya procesados (última generación). |
+| `manifest.json`, `sw.js`, `iconos/` | Lo necesario para instalarla como app (PWA) y usarla sin conexión. |
 
 ## Actualizar los datos
 
@@ -37,3 +38,10 @@ Los horarios son los de España peninsular y corresponden al inicio de la emisi�
 ## Publicar en Vercel
 
 Es una web estática: no necesita build. En Vercel, *Add New → Project*, importa este repositorio con el preset **Other**, sin comando de build y con la raíz como directorio de salida. Cada commit en `main` (incluida la actualización diaria de `datos.json`) vuelve a desplegar la web automáticamente.
+
+## Instalar como app (PWA)
+
+- **Android (Chrome):** abre la web y pulsa *Instalar app* en la cabecera, o menú ⋮ → *Añadir a pantalla de inicio*.
+- **iPhone (Safari):** botón Compartir → *Añadir a pantalla de inicio*.
+
+La app pide siempre la guía más reciente a la red; sin conexión muestra la última que descargó. Mantén pulsado el icono para ir directamente a la *Agenda deportiva* o a la *Parrilla TDT*.

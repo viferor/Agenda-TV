@@ -1,0 +1,21 @@
+{
+  "name": "Agenda TV",
+  "short_name": "Agenda TV",
+  "description": "Agenda deportiva en directo y parrilla de la TDT",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f3f5f8",
+  "theme_color": "#1f4fd8",
+  "icons": [
+    {"src": "iconos/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "iconos/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "iconos/icono-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ],
+  "shortcuts": [
+    {"name": "Agenda deportiva", "url": "./#agenda", "icons": [{"src": "iconos/icono-192.png", "sizes": "192x192"}]},
+    {"name": "Parrilla TDT", "url": "./#tdt", "icons": [{"src": "iconos/icono-192.png", "sizes": "192x192"}]}
+  ]
+}

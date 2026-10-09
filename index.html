@@ -2,6 +2,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Agenda TV</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="iconos/favicon.png">
+<link rel="apple-touch-icon" href="iconos/apple-touch-icon.png">
+<meta name="theme-color" content="#1f4fd8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Agenda TV">
+<meta name="description" content="Agenda deportiva en directo y parrilla de la TDT">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
 <style>
@@ -32,6 +40,9 @@ header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-be
 h1{font-family:var(--display);font-weight:700;font-size:2.4rem;line-height:1;margin:0;letter-spacing:.01em;text-transform:uppercase}
 h1 span{color:var(--accent)}
 .meta{color:var(--muted);font-size:.85rem}
+.hdr-r{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.install{border:0;background:var(--accent);color:#fff;border-radius:6px;padding:6px 12px;font-weight:600;font-size:.85rem}
+.offline{color:var(--live);font-weight:600}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
@@ -107,7 +118,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 <div class="wrap">
   <header>
     <h1>Agenda <span>TV</span></h1>
-    <div class="meta" id="meta">Cargando la guía…</div>
+    <div class="hdr-r"><div class="meta" id="meta">Cargando la guía…</div><button class="install" id="install" hidden>Instalar app</button></div>
   </header>
 
   <div class="tabs" role="tablist">
@@ -147,6 +158,7 @@ const DOW=["dom","lun","mar","mié","jue","vie","sáb"];
 const MON=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 const st={view:"agenda",day:null,sport:"all",sel:null};
 try{const s=JSON.parse(localStorage.getItem("agendatv")||"{}");if(s.view)st.view=s.view;if(s.sport)st.sport=s.sport}catch(e){}
+if(location.hash==="#tdt")st.view="tve";else if(location.hash==="#agenda")st.view="agenda";
 function save(){try{localStorage.setItem("agendatv",JSON.stringify({view:st.view,sport:st.sport}))}catch(e){}}
 
 /* "Hora de pared" de España en ms, para comparar sin líos de zonas horarias */
@@ -177,7 +189,7 @@ function init(){
   if(!st.days.length)st.days=[...set].sort();
   st.day=st.days.includes(today)?today:st.days[0];
   document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{st.view=b.dataset.view;save();render()});
-  render();
+  render();netState();
   setInterval(()=>render(true),60000);
 }
 
@@ -263,4 +275,14 @@ function showDetail(){
   const c=DATA.tve[ci],p=c.p[pi];
   $("detail").innerHTML=`<div class="sub">${esc(c.name)} · ${hhmm(p.s)}–${hhmm(p.e)}${p.g?" · "+esc(p.g.replace(","," / ")):""}</div><h3>${esc(p.t)}</h3>${p.d?`<p>${esc(p.d)}</p>`:""}<div><a class="ch" style="text-decoration:none;color:var(--accent);font-weight:600" href="${esc(c.url||"https://www.rtve.es/play/")}" target="_blank" rel="noopener">Abrir ${esc(c.app||"RTVE Play")} ↗</a></div>`;
 }
+/* PWA: service worker, instalación y aviso sin conexión */
+if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost")&&!/claude\.ai|claudeusercontent/.test(location.hostname)){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+let installEvt=null;
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();installEvt=e;$("install").hidden=false});
+$("install").onclick=async()=>{if(!installEvt)return;installEvt.prompt();await installEvt.userChoice.catch(()=>{});installEvt=null;$("install").hidden=true};
+addEventListener("appinstalled",()=>{$("install").hidden=true});
+function netState(){const m=$("meta");if(!m||!DATA)return;m.querySelector(".offline")?.remove();if(!navigator.onLine){const s=document.createElement("span");s.className="offline";s.textContent=" · Sin conexión";m.append(s)}}
+addEventListener("online",netState);addEventListener("offline",netState);
 </script>
