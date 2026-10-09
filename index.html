@@ -1,0 +1,263 @@
+<title>Agenda TV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: cabecera tipo rótulo de retransmisión, selector de día compartido, dos vistas (agenda en lista / parrilla en línea de tiempo) */
+:root{
+  --bg:#f3f5f8; --surface:#ffffff; --ink:#121a2b; --muted:#5b6578; --line:#dde2ea;
+  --accent:#1f4fd8; --accent-soft:#e3eafc; --live:#d6283c; --live-soft:#fde6e9;
+  --laliga:#e0482f; --champions:#2a3f9e; --ciclismo:#d9a400; --tenis:#2f9d5a;
+  --block:#eef1f6; --block-hover:#e1e7f2;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d1220; --surface:#151c2e; --ink:#e8ecf4; --muted:#97a1b5; --line:#263049;
+  --accent:#7c9cff; --accent-soft:#1f2b4f; --live:#ff5a6c; --live-soft:#3a1a22;
+  --laliga:#ff7a5e; --champions:#8ea0ff; --ciclismo:#f2c230; --tenis:#4fc77e;
+  --block:#1b2438; --block-hover:#24304a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1220; --surface:#151c2e; --ink:#e8ecf4; --muted:#97a1b5; --line:#263049;
+  --accent:#7c9cff; --accent-soft:#1f2b4f; --live:#ff5a6c; --live-soft:#3a1a22;
+  --laliga:#ff7a5e; --champions:#8ea0ff; --ciclismo:#f2c230; --tenis:#4fc77e;
+  --block:#1b2438; --block-hover:#24304a; color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+.wrap{max-width:960px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:grid;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:8px 16px}
+h1{font-family:var(--display);font-weight:700;font-size:2.4rem;line-height:1;margin:0;letter-spacing:.01em;text-transform:uppercase}
+h1 span{color:var(--accent)}
+.meta{color:var(--muted);font-size:.85rem}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.tab{white-space:nowrap;background:none;border:0;padding:10px 14px;font-family:var(--display);font-weight:600;font-size:1.15rem;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.days{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.day{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 12px;display:grid;justify-items:center;min-width:64px}
+.day b{font-family:var(--display);font-size:1.35rem;line-height:1.1;font-variant-numeric:tabular-nums}
+.day small{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.day[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.day[aria-pressed="true"] small{color:inherit;opacity:.8}
+.sports{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px 5px 10px;display:inline-flex;align-items:center;gap:7px;font-weight:500;font-size:.9rem}
+.chip i{width:9px;height:9px;border-radius:50%;background:var(--c,var(--muted))}
+.chip em{font-style:normal;color:var(--muted);font-size:.8rem;font-variant-numeric:tabular-nums}
+.chip[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.list{display:grid;gap:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.ev{display:grid;grid-template-columns:72px 1fr;gap:4px 14px;padding:14px 16px;border-top:1px solid var(--line);position:relative}
+.ev:first-child{border-top:0}
+.ev::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
+.ev.past{opacity:.55}
+.time{font-family:var(--display);font-weight:700;font-size:1.6rem;line-height:1;font-variant-numeric:tabular-nums}
+.status{font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:4px}
+.status.live{color:var(--live)}
+.status.live::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--live);margin-right:5px;vertical-align:1px;animation:pulse 1.6s infinite}
+@keyframes pulse{50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){.status.live::before{animation:none}}
+.body{min-width:0;display:grid;gap:6px}
+.title{font-weight:600;font-size:1.08rem;line-height:1.25}
+.sub{color:var(--muted);font-size:.86rem}
+.sub .sp{color:var(--c);font-weight:600}
+.where{display:flex;flex-wrap:wrap;gap:6px}
+.ch{display:inline-flex;align-items:center;gap:6px;border-radius:6px;background:var(--accent-soft);padding:3px 4px 3px 8px;font-size:.84rem}
+.ch strong{font-weight:600}
+.ch a{color:var(--accent);text-decoration:none;font-weight:600;font-size:.78rem;background:var(--surface);border-radius:4px;padding:2px 6px}
+.ch a:hover{text-decoration:underline}
+.ch .vo{font-size:.7rem;color:var(--muted)}
+.empty{padding:28px 16px;text-align:center;color:var(--muted)}
+/* Parrilla */
+.grid-wrap{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:grid;grid-template-columns:116px 1fr}
+.names{border-right:1px solid var(--line);z-index:2;background:var(--surface)}
+.names div{height:64px;display:flex;align-items:center;padding:0 12px;font-family:var(--display);font-weight:700;font-size:1.15rem;border-top:1px solid var(--line)}
+.names .hcorner{height:30px;border-top:0;font-size:.75rem;color:var(--muted);font-family:var(--body);font-weight:500}
+.scroller{overflow-x:auto;position:relative;min-width:0}
+.track{position:relative}
+.hours{height:30px;position:relative}
+.hours span{position:absolute;top:7px;font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums;padding-left:5px;border-left:1px solid var(--line);height:23px}
+.row{height:64px;position:relative;border-top:1px solid var(--line)}
+.prog{position:absolute;top:5px;bottom:5px;background:var(--block);border:0;border-radius:6px;padding:5px 8px;text-align:left;overflow:hidden;display:grid;align-content:start;gap:1px;border-left:3px solid transparent}
+.prog:hover{background:var(--block-hover)}
+.prog.sel{border-left-color:var(--accent);background:var(--accent-soft)}
+.prog.onair{border-left-color:var(--live)}
+.prog b{font-weight:600;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog small{font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.now{position:absolute;top:0;bottom:0;width:2px;background:var(--live);z-index:1;pointer-events:none}
+.now::before{content:"";position:absolute;top:0;left:-4px;width:10px;height:10px;border-radius:50%;background:var(--live)}
+.detail{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:6px}
+.detail h3{margin:0;font-size:1.1rem}
+.detail p{margin:0;max-width:68ch}
+.jump{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.jump button{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:4px 10px;font-size:.85rem}
+.note{font-size:.8rem;color:var(--muted);max-width:75ch}
+@media (max-width:560px){
+  h1{font-size:2rem}
+  .ev{grid-template-columns:60px 1fr;padding:12px 14px}
+  .time{font-size:1.35rem}
+  .tab{font-size:1rem;padding:10px 10px}
+  .grid-wrap{grid-template-columns:92px 1fr}
+  .names div{font-size:.95rem;padding:0 8px}
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Agenda <span>TV</span></h1>
+    <div class="meta" id="meta">Cargando la guía…</div>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="tab-agenda" aria-selected="true" data-view="agenda">Agenda deportiva</button>
+    <button class="tab" role="tab" id="tab-tve" aria-selected="false" data-view="tve">Parrilla TVE</button>
+  </div>
+
+  <nav class="days" id="days" aria-label="Elegir día"></nav>
+
+  <section id="view-agenda" style="display:grid;gap:12px">
+    <div class="sports" id="sports" aria-label="Elegir deporte"></div>
+    <div class="list" id="list"><div class="empty">Cargando…</div></div>
+  </section>
+
+  <section id="view-tve" hidden style="display:grid;gap:12px">
+    <div class="jump" id="jump"></div>
+    <div class="grid-wrap">
+      <div class="names" id="names"></div>
+      <div class="scroller" id="scroller"><div class="track" id="track"></div></div>
+    </div>
+    <div class="detail" id="detail"><span class="note">Toca un programa para ver su descripción.</span></div>
+  </section>
+
+  <p class="note">Horarios de España peninsular. La hora es la del inicio de la emisión, que suele empezar unos minutos antes del partido. Datos de la guía XMLTV pública EPG dobleM; solo aparecen las emisiones marcadas como directo.</p>
+</div>
+
+<script>
+const SPORTS=[
+  {id:"all",name:"Todos",c:"var(--muted)"},
+  {id:"laliga",name:"LaLiga",c:"var(--laliga)"},
+  {id:"champions",name:"Champions League",c:"var(--champions)"},
+  {id:"ciclismo",name:"Ciclismo",c:"var(--ciclismo)"},
+  {id:"tenis",name:"Tenis",c:"var(--tenis)"},
+];
+const SPORT=Object.fromEntries(SPORTS.map(s=>[s.id,s]));
+const DOW=["dom","lun","mar","mié","jue","vie","sáb"];
+const MON=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+const st={view:"agenda",day:null,sport:"all",sel:null};
+try{const s=JSON.parse(localStorage.getItem("agendatv")||"{}");if(s.view)st.view=s.view;if(s.sport)st.sport=s.sport}catch(e){}
+function save(){try{localStorage.setItem("agendatv",JSON.stringify({view:st.view,sport:st.sport}))}catch(e){}}
+
+/* "Hora de pared" de España en ms, para comparar sin líos de zonas horarias */
+function wall(iso){const [d,t]=iso.slice(0,16).split("T");const [Y,M,D]=d.split("-").map(Number);const [h,m]=t.split(":").map(Number);return Date.UTC(Y,M-1,D,h,m)}
+function nowWall(){const p=Object.fromEntries(new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Madrid",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date()).map(x=>[x.type,x.value]));return Date.UTC(+p.year,+p.month-1,+p.day,+p.hour,+p.minute)}
+const hhmm=iso=>iso.slice(11,16);
+const dayKey=ms=>new Date(ms).toISOString().slice(0,10);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+let DATA=null;
+const $=id=>document.getElementById(id);
+
+fetch("datos.json").then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{DATA=d;init()}).catch(()=>{
+  $("meta").textContent="No se pudo cargar la guía.";
+  $("list").innerHTML='<div class="empty">No se han podido leer los datos de la guía. Recarga la página para intentarlo de nuevo.</div>';
+});
+
+function init(){
+  const g=DATA.fuente.match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}:\d{2})/);
+  $("meta").textContent=g?`Guía actualizada el ${+g[1]} ${MON[+g[2]-1]} a las ${g[4]}`:"";
+  const today=dayKey(nowWall());
+  const set=new Set();
+  DATA.eventos.forEach(e=>set.add(e.s.slice(0,10)));
+  const la1=DATA.tve[0].p, cnt={};
+  la1.forEach(p=>{const k=p.s.slice(0,10);cnt[k]=(cnt[k]||0)+1});
+  Object.entries(cnt).forEach(([k,n])=>{if(n>=8)set.add(k)});
+  st.days=[...set].filter(k=>k>=today).sort();
+  if(!st.days.length)st.days=[...set].sort();
+  st.day=st.days.includes(today)?today:st.days[0];
+  document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{st.view=b.dataset.view;save();render()});
+  render();
+  setInterval(()=>render(true),60000);
+}
+
+function render(tick){
+  document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.view===st.view));
+  $("view-agenda").hidden=st.view!=="agenda";
+  $("view-tve").hidden=st.view!=="tve";
+  renderDays();
+  if(st.view==="agenda")renderAgenda();else renderTVE(tick);
+}
+
+function renderDays(){
+  const today=dayKey(nowWall()), tomorrow=dayKey(nowWall()+864e5);
+  $("days").innerHTML=st.days.map(k=>{
+    const d=new Date(k+"T12:00:00Z");
+    const lab=k===today?"Hoy":k===tomorrow?"Mañana":DOW[d.getUTCDay()];
+    return `<button class="day" aria-pressed="${k===st.day}" data-d="${k}"><small>${lab}</small><b>${d.getUTCDate()}</b><small>${MON[d.getUTCMonth()]}</small></button>`}).join("");
+  $("days").querySelectorAll(".day").forEach(b=>b.onclick=()=>{st.day=b.dataset.d;st.sel=null;st.scrolled=false;render()});
+}
+
+function renderAgenda(){
+  const evs=DATA.eventos.filter(e=>e.s.slice(0,10)===st.day);
+  const counts={all:evs.length};evs.forEach(e=>counts[e.sport]=(counts[e.sport]||0)+1);
+  $("sports").innerHTML=SPORTS.map(s=>`<button class="chip" style="--c:${s.c}" aria-pressed="${st.sport===s.id}" data-s="${s.id}">${s.id!=="all"?"<i></i>":""}${s.name} <em>${counts[s.id]||0}</em></button>`).join("");
+  $("sports").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{st.sport=b.dataset.s;save();renderAgenda()});
+  const list=evs.filter(e=>st.sport==="all"||e.sport===st.sport);
+  if(!list.length){
+    const nm=st.sport==="all"?"ninguno de estos deportes":SPORT[st.sport].name;
+    $("list").innerHTML=`<div class="empty">No hay emisiones en directo de ${esc(nm)} este día según la guía.</div>`;return;
+  }
+  const now=nowWall();
+  $("list").innerHTML=list.map(e=>{
+    const s=wall(e.s),en=wall(e.e);
+    const live=now>=s&&now<en, past=now>=en;
+    const sp=SPORT[e.sport];
+    const sub=[e.comp,e.rnd].filter(Boolean).map(esc).join(" · ");
+    const seen=new Set();
+    const chs=e.ch.map(c=>{
+      const link=c.url&&!seen.has(c.app)?`<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.app)} ↗</a>`:"";
+      seen.add(c.app);
+      return `<span class="ch"><strong>${esc(c.c)}</strong>${c.vo?'<span class="vo">VO</span>':""}${link}</span>`}).join("");
+    return `<article class="ev${past?" past":""}" style="--c:${sp.c}">
+      <div><div class="time">${hhmm(e.s)}</div><div class="status${live?" live":""}">${live?"En directo":past?"Finalizado":"Hasta "+hhmm(e.e)}</div></div>
+      <div class="body"><div class="title">${esc(e.ev)}</div><div class="sub"><span class="sp">${sp.name}</span> · ${sub}</div><div class="where">${chs}</div></div>
+    </article>`}).join("");
+}
+
+function renderTVE(tick){
+  const W=innerWidth<560?120:170; /* px por hora */
+  const d0=Date.UTC(...st.day.split("-").map((v,i)=>i===1?v-1:+v)), d1=d0+864e5;
+  const x=ms=>(ms-d0)/36e5*W;
+  const total=24*W;
+  $("names").innerHTML='<div class="hcorner">Canal</div>'+DATA.tve.map(c=>`<div>${esc(c.name)}</div>`).join("");
+  const now=nowWall();
+  let hours="";for(let h=0;h<24;h++)hours+=`<span style="left:${h*W}px;width:${W}px">${String(h).padStart(2,"0")}:00</span>`;
+  let rows="";
+  DATA.tve.forEach((c,ci)=>{
+    let r="";
+    c.p.forEach((p,pi)=>{
+      const s=wall(p.s),e=wall(p.e);
+      if(e<=d0||s>=d1)return;
+      const L=Math.max(0,x(s)),R=Math.min(total,x(e));
+      if(R-L<2)return;
+      const id=ci+"-"+pi, onair=now>=s&&now<e;
+      r+=`<button class="prog${st.sel===id?" sel":""}${onair?" onair":""}" style="left:${L+1}px;width:${R-L-2}px" data-id="${id}" title="${esc(hhmm(p.s)+" "+p.t)}"><b>${esc(p.t)}</b><small>${hhmm(p.s)}–${hhmm(p.e)}</small></button>`;
+    });
+    rows+=`<div class="row" style="width:${total}px">${r}</div>`;
+  });
+  const nowLine=now>=d0&&now<d1?`<div class="now" style="left:${x(now)}px"></div>`:"";
+  const sc=$("scroller"), keep=sc.scrollLeft;
+  $("track").style.width=total+"px";
+  $("track").innerHTML=`<div class="hours" style="width:${total}px">${hours}</div>${rows}${nowLine}`;
+  $("track").querySelectorAll(".prog").forEach(b=>b.onclick=()=>{st.sel=b.dataset.id;renderTVE(true);showDetail()});
+  $("jump").innerHTML=["Mañana|7","Mediodía|13","Tarde|17","Noche|21"].map(v=>{const[n,h]=v.split("|");return `<button data-h="${h}">${n}</button>`}).join("")+(nowLine?'<button data-h="now">Ahora</button>':"");
+  $("jump").querySelectorAll("button").forEach(b=>b.onclick=()=>{const h=b.dataset.h==="now"?(now-d0)/36e5-.5:+b.dataset.h;sc.scrollTo({left:Math.max(0,h*W),behavior:"smooth"})});
+  if(tick&&st.scrolled){sc.scrollLeft=keep}
+  else{st.scrolled=true;const h=nowLine?(now-d0)/36e5-.5:7;sc.scrollLeft=Math.max(0,h*W)}
+  if(!st.sel)$("detail").innerHTML='<span class="note">Toca un programa para ver su descripción.</span>';
+}
+
+function showDetail(){
+  const [ci,pi]=st.sel.split("-").map(Number);
+  const c=DATA.tve[ci],p=c.p[pi];
+  $("detail").innerHTML=`<div class="sub">${esc(c.name)} · ${hhmm(p.s)}–${hhmm(p.e)}${p.g?" · "+esc(p.g.replace(","," / ")):""}</div><h3>${esc(p.t)}</h3>${p.d?`<p>${esc(p.d)}</p>`:""}<div><a class="ch" style="text-decoration:none;color:var(--accent);font-weight:600" href="https://www.rtve.es/play/" target="_blank" rel="noopener">Abrir RTVE Play ↗</a></div>`;
+}
+</script>
