@@ -17,7 +17,7 @@
 :root{
   --bg:#f3f5f8; --surface:#ffffff; --ink:#121a2b; --muted:#5b6578; --line:#dde2ea;
   --accent:#1f4fd8; --accent-soft:#e3eafc; --live:#d6283c; --live-soft:#fde6e9;
-  --laliga:#e0482f; --champions:#2a3f9e; --ciclismo:#d9a400; --tenis:#2f9d5a;
+  --laliga:#e0482f; --champions:#2a3f9e; --ciclismo:#d9a400; --tenis:#2f9d5a; --motor:#7b3fd0; --star:#e8a300;
   --block:#eef1f6; --block-hover:#e1e7f2;
   --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
   --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -25,12 +25,12 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#0d1220; --surface:#151c2e; --ink:#e8ecf4; --muted:#97a1b5; --line:#263049;
   --accent:#7c9cff; --accent-soft:#1f2b4f; --live:#ff5a6c; --live-soft:#3a1a22;
-  --laliga:#ff7a5e; --champions:#8ea0ff; --ciclismo:#f2c230; --tenis:#4fc77e;
+  --laliga:#ff7a5e; --champions:#8ea0ff; --ciclismo:#f2c230; --tenis:#4fc77e; --motor:#b38cff; --star:#ffc53d;
   --block:#1b2438; --block-hover:#24304a; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#0d1220; --surface:#151c2e; --ink:#e8ecf4; --muted:#97a1b5; --line:#263049;
   --accent:#7c9cff; --accent-soft:#1f2b4f; --live:#ff5a6c; --live-soft:#3a1a22;
-  --laliga:#ff7a5e; --champions:#8ea0ff; --ciclismo:#f2c230; --tenis:#4fc77e;
+  --laliga:#ff7a5e; --champions:#8ea0ff; --ciclismo:#f2c230; --tenis:#4fc77e; --motor:#b38cff; --star:#ffc53d;
   --block:#1b2438; --block-hover:#24304a; color-scheme:dark}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -82,19 +82,20 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 .ch .vo{font-size:.7rem;color:var(--muted)}
 .empty{padding:28px 16px;text-align:center;color:var(--muted)}
 /* Parrilla */
-.grid-wrap{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:grid;grid-template-columns:116px 1fr}
+.grid-wrap{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:grid;grid-template-columns:148px 1fr}
 .names{border-right:1px solid var(--line);z-index:2;background:var(--surface)}
-.names div{height:64px;display:flex;align-items:center;padding:0 12px;font-family:var(--display);font-weight:700;font-size:1.15rem;border-top:1px solid var(--line)}
+.names div{height:56px;display:flex;align-items:center;gap:4px;padding:0 6px;font-family:var(--display);font-weight:700;font-size:1.15rem;border-top:1px solid var(--line)}
 .names .hcorner{height:30px;border-top:0;font-size:.75rem;color:var(--muted);font-family:var(--body);font-weight:500}
 .scroller{overflow-x:auto;position:relative;min-width:0}
 .track{position:relative}
 .hours{height:30px;position:relative}
 .hours span{position:absolute;top:7px;font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums;padding-left:5px;border-left:1px solid var(--line);height:23px}
-.row{height:64px;position:relative;border-top:1px solid var(--line)}
+.row{height:56px;position:relative;border-top:1px solid var(--line)}
 .prog{position:absolute;top:5px;bottom:5px;background:var(--block);border:0;border-radius:6px;padding:5px 8px;text-align:left;overflow:hidden;display:grid;align-content:start;gap:1px;border-left:3px solid transparent}
 .prog:hover{background:var(--block-hover)}
 .prog.sel{border-left-color:var(--accent);background:var(--accent-soft)}
 .prog.onair{border-left-color:var(--live)}
+.prog b,.prog small{position:relative}
 .prog b{font-weight:600;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .prog small{font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .now{position:absolute;top:0;bottom:0;width:2px;background:var(--live);z-index:1;pointer-events:none}
@@ -103,6 +104,12 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 .detail h3{margin:0;font-size:1.1rem}
 .detail p{margin:0;max-width:68ch}
 .jump{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.bar{display:flex;gap:8px 16px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.star{border:0;background:none;padding:2px;font-size:1.05rem;line-height:1;color:var(--muted);flex:0 0 auto}
+.star[aria-pressed="true"]{color:var(--star)}
+.names span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.favs .chip[aria-pressed="true"] .s{color:var(--star)}
+.grid-empty{grid-column:1/-1;padding:28px 16px;text-align:center;color:var(--muted)}
 .jump button{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:4px 10px;font-size:.85rem}
 .note{font-size:.8rem;color:var(--muted);max-width:75ch}
 @media (max-width:560px){
@@ -110,8 +117,8 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
   .ev{grid-template-columns:60px 1fr;padding:12px 14px}
   .time{font-size:1.35rem}
   .tab{font-size:1rem;padding:10px 10px}
-  .grid-wrap{grid-template-columns:92px 1fr}
-  .names div{font-size:.95rem;padding:0 8px}
+  .grid-wrap{grid-template-columns:118px 1fr}
+  .names div{font-size:.92rem;padding:0 4px}
 }
 </style>
 
@@ -134,8 +141,8 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
   </section>
 
   <section id="view-tve" hidden style="display:grid;gap:12px">
-    <div class="jump" id="jump"></div>
-    <div class="grid-wrap">
+    <div class="bar"><div class="sports favs" id="favs" aria-label="Filtrar canales"></div><div class="jump" id="jump"></div></div>
+    <div class="grid-wrap" id="gridwrap">
       <div class="names" id="names"></div>
       <div class="scroller" id="scroller"><div class="track" id="track"></div></div>
     </div>
@@ -152,11 +159,14 @@ const SPORTS=[
   {id:"champions",name:"Champions League",c:"var(--champions)"},
   {id:"ciclismo",name:"Ciclismo",c:"var(--ciclismo)"},
   {id:"tenis",name:"Tenis",c:"var(--tenis)"},
+  {id:"motor",name:"Motor (F1 y MotoGP)",short:"Motor",c:"var(--motor)"},
 ];
 const SPORT=Object.fromEntries(SPORTS.map(s=>[s.id,s]));
 const DOW=["dom","lun","mar","mié","jue","vie","sáb"];
 const MON=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
-const st={view:"agenda",day:null,sport:"all",sel:null};
+const st={view:"agenda",day:null,sport:"all",sel:null,favs:new Set(),onlyFav:false};
+try{const f=JSON.parse(localStorage.getItem("agendatv-favs")||"{}");st.favs=new Set(f.ids||[]);st.onlyFav=!!f.only}catch(e){}
+function saveFavs(){try{localStorage.setItem("agendatv-favs",JSON.stringify({ids:[...st.favs],only:st.onlyFav}))}catch(e){}}
 try{const s=JSON.parse(localStorage.getItem("agendatv")||"{}");if(s.view)st.view=s.view;if(s.sport)st.sport=s.sport}catch(e){}
 if(location.hash==="#tdt")st.view="tve";else if(location.hash==="#agenda")st.view="agenda";
 function save(){try{localStorage.setItem("agendatv",JSON.stringify({view:st.view,sport:st.sport}))}catch(e){}}
@@ -233,7 +243,7 @@ function renderAgenda(){
       return `<span class="ch"><strong>${esc(c.c)}</strong>${c.vo?'<span class="vo">VO</span>':""}${link}</span>`}).join("");
     return `<article class="ev${past?" past":""}" style="--c:${sp.c}">
       <div><div class="time">${hhmm(e.s)}</div><div class="status${live?" live":""}">${live?"En directo":past?"Finalizado":"Hasta "+hhmm(e.e)}</div></div>
-      <div class="body"><div class="title">${esc(e.ev)}</div><div class="sub"><span class="sp">${sp.name}</span> · ${sub}</div><div class="where">${chs}</div></div>
+      <div class="body"><div class="title">${esc(e.ev)}</div><div class="sub"><span class="sp">${sp.short||sp.name}</span> · ${sub}</div><div class="where">${chs}</div></div>
     </article>`}).join("");
 }
 
@@ -242,11 +252,19 @@ function renderTVE(tick){
   const d0=Date.UTC(...st.day.split("-").map((v,i)=>i===1?v-1:+v)), d1=d0+864e5;
   const x=ms=>(ms-d0)/36e5*W;
   const total=24*W;
-  $("names").innerHTML='<div class="hcorner">Canal</div>'+DATA.tve.map(c=>`<div>${esc(c.name)}</div>`).join("");
+  const nf=DATA.tve.filter(c=>st.favs.has(c.id)).length;
+  $("favs").innerHTML=`<button class="chip" aria-pressed="${!st.onlyFav}" data-f="0">Todos los canales</button><button class="chip" aria-pressed="${st.onlyFav}" data-f="1"><span class="s">★</span> Favoritos <em>${nf}</em></button>`;
+  $("favs").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{st.onlyFav=b.dataset.f==="1";st.sel=null;saveFavs();renderTVE(true)});
+  const chans=DATA.tve.map((c,ci)=>({c,ci})).filter(o=>!st.onlyFav||st.favs.has(o.c.id));
+  const gw=$("gridwrap");gw.querySelector(".grid-empty")?.remove();
+  $("names").hidden=$("scroller").hidden=!chans.length;
+  if(!chans.length){gw.insertAdjacentHTML("beforeend",'<div class="grid-empty">Aún no tienes canales favoritos. Pulsa «Todos los canales» y toca la ☆ junto al nombre de un canal para añadirlo.</div>')}
+  $("names").innerHTML='<div class="hcorner">Canal</div>'+chans.map(({c})=>{const on=st.favs.has(c.id);return `<div><button class="star" aria-pressed="${on}" aria-label="${on?"Quitar":"Añadir"} ${esc(c.name)} ${on?"de":"a"} favoritos" data-id="${esc(c.id)}">${on?"★":"☆"}</button><span>${esc(c.name)}</span></div>`}).join("");
+  $("names").querySelectorAll(".star").forEach(b=>b.onclick=()=>{const id=b.dataset.id;st.favs.has(id)?st.favs.delete(id):st.favs.add(id);saveFavs();renderTVE(true)});
   const now=nowWall();
   let hours="";for(let h=0;h<24;h++)hours+=`<span style="left:${h*W}px;width:${W}px">${String(h).padStart(2,"0")}:00</span>`;
   let rows="";
-  DATA.tve.forEach((c,ci)=>{
+  chans.forEach(({c,ci})=>{
     let r="";
     c.p.forEach((p,pi)=>{
       const s=wall(p.s),e=wall(p.e);
@@ -265,15 +283,21 @@ function renderTVE(tick){
   $("track").querySelectorAll(".prog").forEach(b=>b.onclick=()=>{st.sel=b.dataset.id;renderTVE(true);showDetail()});
   $("jump").innerHTML=["Mañana|7","Mediodía|13","Tarde|17","Noche|21"].map(v=>{const[n,h]=v.split("|");return `<button data-h="${h}">${n}</button>`}).join("")+(nowLine?'<button data-h="now">Ahora</button>':"");
   $("jump").querySelectorAll("button").forEach(b=>b.onclick=()=>{const h=b.dataset.h==="now"?(now-d0)/36e5-.5:+b.dataset.h;sc.scrollTo({left:Math.max(0,h*W),behavior:"smooth"})});
+  sc.onscroll=()=>{if(!pinQ){pinQ=true;requestAnimationFrame(pinText)}};
   if(tick&&st.scrolled){sc.scrollLeft=keep}
   else{st.scrolled=true;const h=nowLine?(now-d0)/36e5-.5:7;sc.scrollLeft=Math.max(0,h*W)}
+  pinText();
   if(!st.sel)$("detail").innerHTML='<span class="note">Toca un programa para ver su descripción.</span>';
 }
 
+let pinQ=false;
+function pinText(){pinQ=false;const sl=$("scroller").scrollLeft;
+  $("track").querySelectorAll(".prog").forEach(b=>{const L=b.offsetLeft,w=b.offsetWidth;const off=sl>L?Math.min(sl-L,Math.max(0,w-90)):0;
+    b.querySelectorAll("b,small").forEach(t=>t.style.left=off?off+"px":"")})}
 function showDetail(){
   const [ci,pi]=st.sel.split("-").map(Number);
   const c=DATA.tve[ci],p=c.p[pi];
-  $("detail").innerHTML=`<div class="sub">${esc(c.name)} · ${hhmm(p.s)}–${hhmm(p.e)}${p.g?" · "+esc(p.g.replace(","," / ")):""}</div><h3>${esc(p.t)}</h3>${p.d?`<p>${esc(p.d)}</p>`:""}<div><a class="ch" style="text-decoration:none;color:var(--accent);font-weight:600" href="${esc(c.url||"https://www.rtve.es/play/")}" target="_blank" rel="noopener">Abrir ${esc(c.app||"RTVE Play")} ↗</a></div>`;
+  $("detail").innerHTML=`<div class="sub">${esc(c.name)} · ${hhmm(p.s)}–${hhmm(p.e)}${p.g?" · "+esc(p.g.replace(","," / ")):""}</div><h3>${esc(p.t)}</h3>${p.d?`<p>${esc(p.d)}</p>`:""}${c.url?`<div><a class="ch" style="text-decoration:none;color:var(--accent);font-weight:600" href="${esc(c.url)}" target="_blank" rel="noopener">Abrir ${esc(c.app)} ↗</a></div>`:""}`;
 }
 /* PWA: service worker, instalación y aviso sin conexión */
 if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost")&&!/claude\.ai|claudeusercontent/.test(location.hostname)){

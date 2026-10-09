@@ -4,8 +4,8 @@
 
 Página web con dos vistas:
 
-- **Agenda deportiva**: emisiones en directo de LaLiga (EA Sports e Hypermotion), UEFA Champions League, ciclismo y tenis. Se filtran por día y deporte, se ordenan por hora de emisión y muestran el canal y un enlace a la app oficial donde verlo (Movistar Plus+, DAZN, LaLiga TV, RTVE Play, Atresplayer, Mediaset Infinity, Eurosport…).
-- **Parrilla TDT**: programación por horas de La 1, La 2, Antena 3, Cuatro, Telecinco, laSexta, Canal Sur, 24h, Teledeporte y Clan en una línea de tiempo, con enlace a la app de cada cadena (RTVE Play, Atresplayer, Mediaset Infinity, Canal Sur Más).
+- **Agenda deportiva**: emisiones en directo de LaLiga (EA Sports e Hypermotion), UEFA Champions League, ciclismo, tenis y motor (solo Fórmula 1 y MotoGP). Se filtran por día y deporte, se ordenan por hora de emisión y muestran el canal y un enlace a la app oficial donde verlo (Movistar Plus+, DAZN, LaLiga TV, RTVE Play, Atresplayer, Mediaset Infinity, Eurosport…).
+- **Parrilla TDT**: programación por horas de los canales nacionales de la TDT (sin los infantiles) más Canal Sur, en una línea de tiempo, con enlace a la app de cada cadena. Los canales se pueden marcar como favoritos (☆) y filtrar para ver solo esos; los favoritos se guardan en el navegador de cada dispositivo.
 
 ## Archivos
 
@@ -31,6 +31,7 @@ Solo usa la biblioteca estándar de Python 3.
 - LaLiga: categoría *Fútbol* y título con `LALIGA EA SPORTS` o `LALIGA HYPERMOTION`.
 - Champions: categoría *Fútbol* y título con `UEFA Champions League`.
 - Ciclismo / Tenis: por la categoría de la guía.
+- Motor: solo `Mundial F1` y `MotoGP` (fin de semana completo, incluidas Moto2 y Moto3); se descartan los programas previos y posteriores.
 - La misma emisión en varios canales se agrupa en una sola entrada. Se omiten los canales para hostelería (BAR).
 
 Los horarios son los de España peninsular y corresponden al inicio de la emisión.

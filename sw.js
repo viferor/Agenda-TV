@@ -1,7 +1,7 @@
 /* Service worker de Agenda TV.
    - Página y datos: primero la red (para tener siempre la guía del día) y, sin conexión, la última copia guardada.
    - Iconos y fuentes: primero la caché. */
-const CACHE = "agendatv-v1";
+const CACHE = "agendatv-v2";
 const PRECACHE = ["./", "index.html", "datos.json", "manifest.json",
   "iconos/icono-192.png", "iconos/icono-512.png", "iconos/favicon.png"];
 

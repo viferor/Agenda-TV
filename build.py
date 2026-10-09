@@ -2,8 +2,14 @@
 import xml.etree.ElementTree as ET, re, json, sys, datetime as dt, urllib.request, gzip, io
 
 SRC = "https://raw.githubusercontent.com/davidmuma/EPG_dobleM/master/guiatv.xml"
-TVE = [("La 1 HD","La 1"),("La 2","La 2"),("Antena 3 HD","Antena 3"),("Cuatro HD","Cuatro"),("Telecinco HD","Telecinco"),
-       ("La Sexta HD","laSexta"),("Canal Sur HD","Canal Sur"),("24 Horas","24h"),("Teledeporte","Teledeporte"),("Clan","Clan")]
+TVE = [  # TDT nacional sin canales infantiles, en orden aproximado del mando + Canal Sur
+    ("La 1 HD","La 1"),("La 2","La 2"),("Antena 3 HD","Antena 3"),("Cuatro HD","Cuatro"),("Telecinco HD","Telecinco"),
+    ("La Sexta HD","laSexta"),("Canal Sur HD","Canal Sur"),("24 Horas","24h"),("Teledeporte","Teledeporte"),
+    ("Neox","Neox"),("Nova","Nova"),("Mega","Mega"),("Atreseries","Atreseries"),
+    ("Factoría de Ficción","FDF"),("Energy","Energy"),("Divinity","Divinity"),("Be Mad","Be Mad"),
+    ("Ten","Ten"),("DMAX","DMAX"),("DKISS","DKISS"),("TRECE","TRECE"),("Real Madrid TV","Real Madrid TV"),
+    ("El Toro TV","El Toro TV"),("Squirrel TV","Squirrel"),("Veo7","Veo7"),
+]
 
 # canal EPG -> (nombre visible, app oficial, web)
 APPS = [
@@ -11,9 +17,11 @@ APPS = [
     (r"^DAZN", "DAZN", "https://www.dazn.com/es-ES"),
     (r"^LaLiga TV", "LaLiga TV Hypermotion", "https://www.laliga.com/laliga-tv"),
     (r"^(La 1|La 2|Teledeporte|24 Horas|Clan)", "RTVE Play", "https://www.rtve.es/play/"),
-    (r"^(Antena 3|La Sexta)", "Atresplayer", "https://www.atresplayer.com/directos/"),
-    (r"^(Cuatro|Telecinco)", "Mediaset Infinity", "https://www.mitele.es/directo/"),
+    (r"^(Antena 3|La Sexta|Neox|Nova|Mega|Atreseries)", "Atresplayer", "https://www.atresplayer.com/directos/"),
+    (r"^(Cuatro|Telecinco|Factoría de Ficción|Energy|Divinity|Be Mad)", "Mediaset Infinity", "https://www.mitele.es/directo/"),
     (r"^(Canal Sur|Andalucía TV)", "Canal Sur Más", "https://www.canalsur.es/"),
+    (r"^TRECE", "TRECE", "https://www.trecetv.es"),
+    (r"^Real Madrid TV", "Real Madrid TV", "https://www.realmadrid.com"),
     (r"^Eurosport", "Eurosport / HBO Max", "https://www.eurosport.es"),
     (r"^etb", "EITB", "https://www.eitb.eus/es/"),
     (r"^(TV3|Esport 3|SX3|3Cat)", "3Cat", "https://www.3cat.cat"),
@@ -42,6 +50,10 @@ def classify(title, c):
     if "Fútbol" in c and re.search(r"LALIGA (EA SPORTS|HYPERMOTION)", title): return "laliga"
     if "Fútbol" in c and "UEFA Champions League" in title: return "champions"
     if "Ciclismo" in c: return "ciclismo"
+    t = re.sub(r"^DIRECTO\s*", "", title)
+    if re.match(r"(Previo|Post|El Post)\b", t): pass
+    elif re.search(r"· Mundial F1\b", title): return "motor"
+    elif re.search(r"· MotoGP\b", title): return "motor"
     if "Tenis" in c: return "tenis"
     return None
 
