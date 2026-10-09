@@ -31,3 +31,7 @@ Solo usa la biblioteca estándar de Python 3.
 - La misma emisión en varios canales se agrupa en una sola entrada. Se omiten los canales para hostelería (BAR).
 
 Los horarios son los de España peninsular y corresponden al inicio de la emisión.
+
+## Publicar en Vercel
+
+Es una web estática: no necesita build. En Vercel, *Add New → Project*, importa este repositorio con el preset **Other**, sin comando de build y con la raíz como directorio de salida. Cada commit en `main` (incluida la actualización diaria de `datos.json`) vuelve a desplegar la web automáticamente.
