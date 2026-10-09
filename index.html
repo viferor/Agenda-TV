@@ -81,6 +81,18 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 .ch a{color:var(--accent);text-decoration:none;font-weight:600;font-size:.78rem;background:var(--surface);border-radius:4px;padding:2px 6px}
 .ch a:hover{text-decoration:underline}
 .ch .vo{font-size:.7rem;color:var(--muted)}
+.abroad{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:0 16px}
+.abroad summary{cursor:pointer;padding:12px 0;font-weight:600;list-style-position:inside}
+.abroad summary small{font-weight:400;color:var(--muted);margin-left:6px}
+.abroad ul{list-style:none;margin:0;padding:0 0 4px;display:grid;gap:0}
+.abroad li{display:grid;grid-template-columns:110px 1fr;gap:2px 12px;padding:9px 0;border-top:1px solid var(--line);font-size:.9rem}
+.abroad li b{font-weight:600}
+.abroad li a{color:var(--accent);font-weight:600;text-decoration:none}
+.abroad li a:hover{text-decoration:underline}
+.abroad li span{color:var(--muted)}
+.abroad p{margin:0;padding:10px 0 14px;border-top:1px solid var(--line);font-size:.8rem;color:var(--muted)}
+.hint{font-size:.85rem;color:var(--muted)}
+@media (max-width:560px){.abroad li{grid-template-columns:1fr}}
 .empty{padding:28px 16px;text-align:center;color:var(--muted)}
 /* Parrilla */
 .grid-wrap{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:grid;grid-template-columns:148px 1fr}
@@ -138,6 +150,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 
   <section id="view-agenda" style="display:grid;gap:12px">
     <div class="sports" id="sports" aria-label="Elegir deporte"></div>
+    <div id="abroad"></div>
     <div class="list" id="list"><div class="empty">Cargando…</div></div>
   </section>
 
@@ -221,11 +234,48 @@ function renderDays(){
   $("days").querySelectorAll(".day").forEach(b=>b.onclick=()=>{st.day=b.dataset.d;st.sel=null;st.scrolled=false;render()});
 }
 
+
+/* Cadenas extranjeras que emiten en abierto (solo informativo).
+   Revisado en octubre de 2026 con fuentes de prensa; los derechos cambian cada temporada. */
+const GRATIS={
+  laliga:{none:"No hemos encontrado ninguna cadena extranjera que emita LaLiga en abierto esta temporada. En España, Teledeporte emite un partido por jornada cedido por DAZN; cuando esté en la guía aparecerá en la agenda.",items:[]},
+  champions:{items:[
+    ["Italia","TV8","https://www.tv8.it","Un partido destacado entre clubes no italianos cada miércoles a las 21:00, también en streaming en su web, y resúmenes a partir de las 23:00."],
+    ["Bélgica","RTL / VTM","https://www.rtlplay.be","Partidos en abierto en el ciclo 2024-27 (RTL en francés, VTM en neerlandés; VTM GO en streaming)."],
+  ]},
+  ciclismo:{items:[
+    ["Francia","France Télévisions","https://www.france.tv","Tour de Francia y grandes carreras francesas en France 2 y France 3."],
+    ["Italia","RAI Sport","https://www.raiplay.it","Giro, Tour y clásicas italianas; streaming en RaiPlay."],
+    ["Bélgica","RTBF / VRT","https://auvio.rtbf.be","Tour y clásicas belgas: Auvio (francés) y VRT MAX / Sporza (neerlandés)."],
+    ["Países Bajos","NOS","https://npo.nl/start","Tour de Francia; streaming en NPO Start."],
+    ["Alemania","ARD","https://www.ardmediathek.de","Tour de Francia en Das Erste y ARD Mediathek."],
+    ["Suiza","SRF / RSI","https://www.srf.ch/play","Tour y Vuelta a Suiza: Play SRF (alemán) y RSI Play (italiano)."],
+    ["Portugal","RTP","https://www.rtp.pt/play","Tour de Francia y Volta a Portugal; RTP Play."],
+  ]},
+  tenis:{none:"No hay emisiones gratuitas oficiales de los Masters 1000 en Europa: todos los derechos son de pago. En España, Teledeporte emite a veces Challenger, Copa Davis y algún torneo español; cuando esté en la guía aparecerá en la agenda.",items:[]},
+  motor:{items:[
+    ["Austria","ServusTV / ORF","https://www.servustv.com","F1: se reparten todas las carreras de 2026 (ServusTV y ORF ON). MotoGP: todos los Grandes Premios en ServusTV."],
+    ["Alemania","RTL","https://www.rtl.de","F1: algunas carreras y clasificaciones en abierto (en Singapur, la clasificación)."],
+    ["Alemania","DF1 / ServusTV On","https://www.servustv.com","MotoGP: 12 Grandes Premios en abierto en 2026."],
+    ["Suiza","SRF / RTS / RSI","https://www.srf.ch/play","F1: algunas carreras, a menudo solo en streaming. MotoGP en las tres cadenas de SRG."],
+    ["Italia","TV8","https://www.tv8.it","MotoGP: parte de los Grandes Premios en abierto (algunos en diferido)."],
+  ]},
+};
+function renderAbroad(){
+  const box=$("abroad");
+  if(st.sport==="all"){box.innerHTML='<div class="hint">Elige un deporte para ver qué cadenas lo emiten gratis en otros países.</div>';return}
+  const g=GRATIS[st.sport];if(!g){box.innerHTML="";return}
+  let open=false;try{open=localStorage.getItem("agendatv-abroad")==="1"}catch(e){}
+  const list=g.items.length?`<ul>${g.items.map(([pais,cad,url,nota])=>`<li><b>${esc(pais)}</b><div><a href="${esc(url)}" target="_blank" rel="noopener">${esc(cad)} ↗</a><br><span>${esc(nota)}</span></div></li>`).join("")}</ul>`:`<p style="border-top:0;padding-top:0">${esc(g.none)}</p>`;
+  box.innerHTML=`<details class="abroad"${open?" open":""}><summary>Gratis en otros países <small>solo informativo</small></summary>${list}${g.items.length?'<p>Estas emisiones solo se pueden ver desde el país de cada cadena: desde España su web suele bloquear el directo. Revisado en octubre de 2026; los derechos cambian cada temporada.</p>':""}</details>`;
+  box.querySelector("details").ontoggle=e=>{try{localStorage.setItem("agendatv-abroad",e.target.open?"1":"0")}catch(_){}};
+}
 function renderAgenda(){
   const evs=DATA.eventos.filter(e=>e.s.slice(0,10)===st.day);
   const counts={all:evs.length};evs.forEach(e=>counts[e.sport]=(counts[e.sport]||0)+1);
   $("sports").innerHTML=SPORTS.map(s=>`<button class="chip" style="--c:${s.c}" aria-pressed="${st.sport===s.id}" data-s="${s.id}">${s.id!=="all"?"<i></i>":""}${s.name} <em>${counts[s.id]||0}</em></button>`).join("");
   $("sports").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{st.sport=b.dataset.s;save();renderAgenda()});
+  renderAbroad();
   const list=evs.filter(e=>st.sport==="all"||e.sport===st.sport);
   if(!list.length){
     const nm=st.sport==="all"?"ninguno de estos deportes":SPORT[st.sport].name;

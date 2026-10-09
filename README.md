@@ -34,6 +34,10 @@ Solo usa la biblioteca estándar de Python 3.
 - Motor: solo `Mundial F1` y `MotoGP` (fin de semana completo, incluidas Moto2 y Moto3); se descartan los programas previos y posteriores.
 - La misma emisión en varios canales se agrupa en una sola entrada. Se omiten los canales para hostelería (BAR).
 
+## Gratis en otros países
+
+Al elegir un deporte aparece un apartado informativo con las cadenas extranjeras que lo emiten en abierto, con el enlace a su web oficial. Es una lista fija (constante `GRATIS` en `index.html`), revisada en octubre de 2026: hay que actualizarla cuando cambien los derechos. Esas emisiones solo se pueden ver desde el país de cada cadena.
+
 Los horarios son los de España peninsular y corresponden al inicio de la emisión.
 
 ## Publicar en Vercel
