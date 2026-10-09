@@ -44,6 +44,48 @@ def cats(desc):
     m = re.match(r"\s*([^|]*?)\s*\|", desc or "")
     return m.group(1).split(",") if m else []
 
+CREDITOS = ("País", "Dirección", "Presentación", "Presentador", "Presentadores", "Reparto", "Guion", "Música")
+
+def ficha(title, start, stop, desc):
+    """Programa de la parrilla con su ficha: género, año, edad, nota, sinopsis y créditos."""
+    p = {"t": title, "s": start, "e": stop}
+    lines = [l.strip() for l in (desc or "").split("\n")]
+    head = lines[0] if lines else ""
+    syn, extra = [], {}
+    if "|" in head.split("·")[0]:
+        meta, _, rest = head.partition("·")
+        parts = [x.strip() for x in meta.split("|") if x.strip()]
+        if parts and not re.match(r"^\d{4}$|^\+?\d+$|^TP$|^\*", parts[0]):
+            p["g"] = parts.pop(0).replace(",", " · ")
+        for x in parts:
+            if re.fullmatch(r"\d{4}", x): p["y"] = x
+            elif re.fullmatch(r"TP|\+\d+", x): p["a"] = x
+            elif x.startswith("*"): p["r"] = x.lstrip("*").replace("/10", "")
+        if rest.strip(): syn.append(rest.strip())
+    else:
+        syn.append(head.lstrip("· ").strip())
+    for l in lines[1:]:
+        l = l.lstrip("·").strip()
+        m = re.match(r"^([A-ZÁÉÍÓÚ][\wáéíóúñ ]{1,20}):\s*(.+)$", l)
+        if m and m.group(1) in CREDITOS:
+            extra[m.group(1)] = m.group(2).rstrip(".")[:220]
+        elif m:
+            continue  # productora, producción, etc.
+        elif l:
+            syn.append(l)
+    s = " ".join(syn).strip()
+    if s and s not in ("Sin detalles...", "Programa por determinar..."):
+        p["d"] = s[:700]
+    if extra: p["c"] = extra
+    # serie: "Título T4 E83 · Nombre del episodio"
+    base, _, ep = title.partition(" · ")
+    m = re.match(r"^(.*?)\s+T(\d+)(?:\s+E(\d+))?$", base)
+    if m:
+        p["sn"] = m.group(1); p["se"] = m.group(2)
+        if m.group(3): p["ep"] = m.group(3)
+        if ep: p["et"] = ep
+    return p
+
 def classify(title, c):
     # DIRECTO = emisión en directo confirmada; "TBC ..." = franja de directo de Movistar Plus+
     # cuyos partidos aún no se han anunciado (pasa en torneos de tenis los días siguientes)
@@ -82,8 +124,7 @@ def main(path):
         ch = p.get("channel"); title = p.findtext("title") or ""; desc = p.findtext("desc") or ""
         start, stop = ts(p.get("start")), ts(p.get("stop"))
         if ch in tve:
-            d = re.sub(r"^\s*[^·]*·\s*", "", desc, count=1) if "|" in desc.split("·")[0] else desc
-            tve[ch].append({"t": title, "s": start, "e": stop, "g": ",".join(cats(desc)[:2]), "d": d.split("\n·")[0].strip()[:300]})
+            tve[ch].append(ficha(title, start, stop, desc))
         sport = classify(title, cats(desc))
         if not sport: continue
         ev, rnd, comp, vo = parse_title(title)

@@ -109,10 +109,44 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 .prog.sel{border-left-color:var(--accent);background:var(--accent-soft)}
 .prog.onair{border-left-color:var(--live)}
 .prog b,.prog small{position:relative}
+.prog.sm{padding:5px 5px;border-left-width:2px}
+.prog.sm small{display:none}
+.prog.xs{padding:0;border-left-width:0;border-radius:3px}
+.prog.xs b,.prog.xs small{display:none}
+.prog.xs.sel,.prog.xs.onair{box-shadow:inset 0 -3px 0 var(--accent)}
+.prog.xs.onair{box-shadow:inset 0 -3px 0 var(--live)}
 .prog b{font-weight:600;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .prog small{font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .now{position:absolute;top:0;bottom:0;width:2px;background:var(--live);z-index:1;pointer-events:none}
 .now::before{content:"";position:absolute;top:0;left:-4px;width:10px;height:10px;border-radius:50%;background:var(--live)}
+dialog.sheet{border:0;padding:0;width:min(560px,calc(100% - 32px));max-height:min(86vh,760px);border-radius:14px;background:var(--surface);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
+.sh-in{display:grid;gap:12px;padding:18px 20px 20px;overflow:auto;max-height:inherit}
+.sh-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.sh-when{font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.sh-when b{color:var(--ink);font-family:var(--display);font-size:1.1rem;letter-spacing:.02em}
+.sh-x{border:0;background:var(--block);border-radius:999px;width:34px;height:34px;font-size:1.1rem;line-height:1;flex:0 0 auto}
+.kind{display:inline-block;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:2px 7px}
+.sheet h2{margin:0;font-family:var(--display);font-weight:700;font-size:1.75rem;line-height:1.1;text-wrap:balance}
+.sh-ep{color:var(--muted);font-weight:500}
+.sh-meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.88rem;color:var(--muted);align-items:center}
+.age{border:1px solid var(--line);border-radius:4px;padding:0 6px;font-weight:600;color:var(--ink)}
+.score{color:var(--ink);font-weight:600}
+.score::before{content:"★ ";color:var(--star)}
+.sh-syn{margin:0;line-height:1.55;max-width:65ch}
+.sh-syn.none{color:var(--muted);font-style:italic}
+.credits{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0;font-size:.88rem;border-top:1px solid var(--line);padding-top:12px}
+.credits dt{color:var(--muted)}
+.credits dd{margin:0}
+.prog-bar{height:4px;border-radius:2px;background:var(--block);overflow:hidden}
+.prog-bar i{display:block;height:100%;background:var(--live)}
+.sh-actions{display:flex;gap:8px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;border-radius:8px;padding:9px 14px;font-weight:600;text-decoration:none;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+@media (max-width:560px){
+  dialog.sheet{width:100%;max-width:100%;margin:auto 0 0;border-radius:16px 16px 0 0;max-height:88vh}
+  .sh-in{padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+}
 .detail{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:6px}
 .detail h3{margin:0;font-size:1.1rem}
 .detail p{margin:0;max-width:68ch}
@@ -160,11 +194,15 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
       <div class="names" id="names"></div>
       <div class="scroller" id="scroller"><div class="track" id="track"></div></div>
     </div>
-    <div class="detail" id="detail"><span class="note">Toca un programa para ver su descripción.</span></div>
+    <p class="note" style="margin:0">Toca un programa para ver su ficha. Los programas de pocos minutos aparecen como franjas estrechas.</p>
   </section>
 
   <p class="note">Horarios de España peninsular. La hora es la del inicio de la emisión, que suele empezar unos minutos antes del partido. Datos de la guía XMLTV pública EPG dobleM; solo aparecen las emisiones marcadas como directo.</p>
 </div>
+
+<dialog class="sheet" id="sheet" aria-labelledby="sh-title">
+  <div class="sh-in" id="sheet-body"></div>
+</dialog>
 
 <script>
 const SPORTS=[
@@ -299,7 +337,7 @@ function renderAgenda(){
 }
 
 function renderTVE(tick){
-  const W=innerWidth<560?120:170; /* px por hora */
+  const W=innerWidth<560?168:220; /* px por hora */
   const d0=Date.UTC(...st.day.split("-").map((v,i)=>i===1?v-1:+v)), d1=d0+864e5;
   const x=ms=>(ms-d0)/36e5*W;
   const total=24*W;
@@ -322,8 +360,10 @@ function renderTVE(tick){
       if(e<=d0||s>=d1)return;
       const L=Math.max(0,x(s)),R=Math.min(total,x(e));
       if(R-L<2)return;
-      const id=ci+"-"+pi, onair=now>=s&&now<e;
-      r+=`<button class="prog${st.sel===id?" sel":""}${onair?" onair":""}" style="left:${L+1}px;width:${R-L-2}px" data-id="${id}" title="${esc(hhmm(p.s)+" "+p.t)}"><b>${esc(p.t)}</b><small>${hhmm(p.s)}–${hhmm(p.e)}</small></button>`;
+      const id=ci+"-"+pi, onair=now>=s&&now<e, w=R-L-2;
+      const size=w<34?" xs":w<70?" sm":"";
+      const name=p.sn?p.sn+(p.se?` T${p.se}`+(p.ep?` E${p.ep}`:""):""):p.t;
+      r+=`<button class="prog${size}${st.sel===id?" sel":""}${onair?" onair":""}" style="left:${L+1}px;width:${w}px" data-id="${id}" aria-label="${esc(hhmm(p.s)+" "+p.t)}" title="${esc(hhmm(p.s)+" "+p.t)}"><b>${esc(name)}</b><small>${hhmm(p.s)}–${hhmm(p.e)}</small></button>`;
     });
     rows+=`<div class="row" style="width:${total}px">${r}</div>`;
   });
@@ -331,24 +371,48 @@ function renderTVE(tick){
   const sc=$("scroller"), keep=sc.scrollLeft;
   $("track").style.width=total+"px";
   $("track").innerHTML=`<div class="hours" style="width:${total}px">${hours}</div>${rows}${nowLine}`;
-  $("track").querySelectorAll(".prog").forEach(b=>b.onclick=()=>{st.sel=b.dataset.id;renderTVE(true);showDetail()});
+  $("track").querySelectorAll(".prog").forEach(b=>b.onclick=()=>{st.sel=b.dataset.id;b.classList.add("sel");showDetail()});
   $("jump").innerHTML=["Mañana|7","Mediodía|13","Tarde|17","Noche|21"].map(v=>{const[n,h]=v.split("|");return `<button data-h="${h}">${n}</button>`}).join("")+(nowLine?'<button data-h="now">Ahora</button>':"");
   $("jump").querySelectorAll("button").forEach(b=>b.onclick=()=>{const h=b.dataset.h==="now"?(now-d0)/36e5-.5:+b.dataset.h;sc.scrollTo({left:Math.max(0,h*W),behavior:"smooth"})});
   sc.onscroll=()=>{if(!pinQ){pinQ=true;requestAnimationFrame(pinText)}};
   if(tick&&st.scrolled){sc.scrollLeft=keep}
   else{st.scrolled=true;const h=nowLine?(now-d0)/36e5-.5:7;sc.scrollLeft=Math.max(0,h*W)}
   pinText();
-  if(!st.sel)$("detail").innerHTML='<span class="note">Toca un programa para ver su descripción.</span>';
 }
 
 let pinQ=false;
 function pinText(){pinQ=false;const sl=$("scroller").scrollLeft;
   $("track").querySelectorAll(".prog").forEach(b=>{const L=b.offsetLeft,w=b.offsetWidth;const off=sl>L?Math.min(sl-L,Math.max(0,w-90)):0;
     b.querySelectorAll("b,small").forEach(t=>t.style.left=off?off+"px":"")})}
+const KIND={"Cine":"Película","Series":"Serie","Deportes":"Deporte","Información":"Informativo","Infantil":"Infantil","Documentales":"Documental","Entretenimiento":"Entretenimiento","Música":"Música","Ocio y Aficiones":"Ocio","Telerrealidad":"Telerrealidad"};
 function showDetail(){
   const [ci,pi]=st.sel.split("-").map(Number);
   const c=DATA.tve[ci],p=c.p[pi];
-  $("detail").innerHTML=`<div class="sub">${esc(c.name)} · ${hhmm(p.s)}–${hhmm(p.e)}${p.g?" · "+esc(p.g.replace(","," / ")):""}</div><h3>${esc(p.t)}</h3>${p.d?`<p>${esc(p.d)}</p>`:""}${c.url?`<div><a class="ch" style="text-decoration:none;color:var(--accent);font-weight:600" href="${esc(c.url)}" target="_blank" rel="noopener">Abrir ${esc(c.app)} ↗</a></div>`:""}`;
+  const [g1,...gr]=(p.g||"").split(" · ");
+  const kind=KIND[g1]||g1||"";
+  const s=wall(p.s),e=wall(p.e),now=nowWall();
+  const onair=now>=s&&now<e, pct=onair?Math.round((now-s)/(e-s)*100):0;
+  const d=new Date(s), today=dayKey(now);
+  const dayLab=dayKey(s)===today?"Hoy":dayKey(s)===dayKey(now+864e5)?"Mañana":`${DOW[d.getUTCDay()]} ${d.getUTCDate()} ${MON[d.getUTCMonth()]}`;
+  const title=p.sn||p.t;
+  const epi=p.se?`Temporada ${p.se}${p.ep?` · Episodio ${p.ep}`:""}${p.et?` · ${p.et}`:""}`:"";
+  const mins=Math.round((e-s)/6e4);
+  const meta=[p.y?`<span>${esc(p.y)}</span>`:"",p.a?`<span class="age" title="Calificación por edad">${esc(p.a)}</span>`:"",p.r?`<span class="score" title="Valoración">${esc(p.r)}/10</span>`:"",gr.length?`<span>${esc(gr.join(" · "))}</span>`:"",`<span>${mins} min</span>`].join("");
+  const cr=p.c?`<dl class="credits">${Object.entries(p.c).map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`:"";
+  $("sheet-body").innerHTML=`
+    <div class="sh-top"><div class="sh-when"><b>${esc(c.name)}</b> · ${dayLab} ${hhmm(p.s)}–${hhmm(p.e)}${onair?' · <span style="color:var(--live);font-weight:600">En emisión</span>':""}</div><button class="sh-x" id="sh-close" aria-label="Cerrar ficha">✕</button></div>
+    ${onair?`<div class="prog-bar" aria-hidden="true"><i style="width:${pct}%"></i></div>`:""}
+    <div style="display:grid;gap:6px">${kind?`<span><span class="kind">${esc(kind)}</span></span>`:""}<h2 id="sh-title">${esc(title)}</h2>${epi?`<div class="sh-ep">${esc(epi)}</div>`:""}</div>
+    <div class="sh-meta">${meta}</div>
+    ${p.d?`<p class="sh-syn">${esc(p.d)}</p>`:'<p class="sh-syn none">La guía no trae sinopsis para este programa.</p>'}
+    ${cr}
+    <div class="sh-actions">${c.url?`<a class="btn primary" href="${esc(c.url)}" target="_blank" rel="noopener">Ver en ${esc(c.app)} ↗</a>`:""}<button class="btn" id="sh-close2">Cerrar</button></div>`;
+  const dlg=$("sheet");
+  const close=()=>{dlg.close()};
+  $("sh-close").onclick=close;$("sh-close2").onclick=close;
+  dlg.onclick=ev=>{if(ev.target===dlg)close()};
+  dlg.onclose=()=>{st.sel=null;renderTVE(true)};
+  if(!dlg.open){try{dlg.showModal()}catch(_){dlg.setAttribute("open","")}}
 }
 /* PWA: service worker, instalación y aviso sin conexión */
 if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost")&&!/claude\.ai|claudeusercontent/.test(location.hostname)){
