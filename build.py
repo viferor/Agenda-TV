@@ -9,6 +9,7 @@ TVE = [  # TDT nacional sin canales infantiles, en orden aproximado del mando + 
     ("Factoría de Ficción","FDF"),("Energy","Energy"),("Divinity","Divinity"),("Be Mad","Be Mad"),
     ("Ten","Ten"),("DMAX","DMAX"),("DKISS","DKISS"),("TRECE","TRECE"),("Real Madrid TV","Real Madrid TV"),
     ("El Toro TV","El Toro TV"),("Squirrel TV","Squirrel"),("Veo7","Veo7"),
+    ("Replay","Replay"),("DBike","DBike"),
 ]
 
 # canal EPG -> (nombre visible, app oficial, web)
@@ -21,6 +22,7 @@ APPS = [
     (r"^(Cuatro|Telecinco|Factoría de Ficción|Energy|Divinity|Be Mad)", "Mediaset Infinity", "https://www.mitele.es/directo/"),
     (r"^(Canal Sur|Andalucía TV)", "Canal Sur Más", "https://www.canalsur.es/"),
     (r"^TRECE", "TRECE", "https://www.trecetv.es"),
+    (r"^Replay$", "Replay (web gratuita)", "https://www.replaytv.es/en-directo"),
     (r"^Real Madrid TV", "Real Madrid TV", "https://www.realmadrid.com"),
     (r"^Eurosport", "Eurosport / HBO Max", "https://www.eurosport.es"),
     (r"^etb", "EITB", "https://www.eitb.eus/es/"),

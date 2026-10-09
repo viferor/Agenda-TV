@@ -5,7 +5,7 @@
 Página web con dos vistas:
 
 - **Agenda deportiva**: emisiones en directo de LaLiga (EA Sports e Hypermotion), UEFA Champions League, ciclismo, tenis y motor (solo Fórmula 1 y MotoGP). Se filtran por día y deporte, se ordenan por hora de emisión y muestran el canal y un enlace a la app oficial donde verlo (Movistar Plus+, DAZN, LaLiga TV, RTVE Play, Atresplayer, Mediaset Infinity, Eurosport…).
-- **Parrilla TDT**: programación por horas de los canales nacionales de la TDT (sin los infantiles) más Canal Sur, en una línea de tiempo, con enlace a la app de cada cadena. Los canales se pueden marcar como favoritos (☆) y filtrar para ver solo esos; los favoritos se guardan en el navegador de cada dispositivo.
+- **Parrilla TDT**: programación por horas de los canales nacionales de la TDT (sin los infantiles) más Canal Sur, Replay (sustituto gratuito de Gol, de Mediapro) y DBike, en una línea de tiempo, con enlace a la app de cada cadena. Los canales se pueden marcar como favoritos (☆) y filtrar para ver solo esos; los favoritos se guardan en el navegador de cada dispositivo.
 
 ## Archivos
 
