@@ -2,8 +2,8 @@
 
 Página web con dos vistas:
 
-- **Agenda deportiva**: emisiones en directo de LaLiga (EA Sports e Hypermotion), UEFA Champions League, ciclismo y tenis. Se filtran por día y deporte, se ordenan por hora de emisión y muestran el canal y un enlace a la app oficial donde verlo (Movistar Plus+, DAZN, LaLiga TV, RTVE Play, Eurosport…).
-- **Parrilla TVE**: programación por horas de La 1, La 2, 24h, Teledeporte y Clan en una línea de tiempo.
+- **Agenda deportiva**: emisiones en directo de LaLiga (EA Sports e Hypermotion), UEFA Champions League, ciclismo y tenis. Se filtran por día y deporte, se ordenan por hora de emisión y muestran el canal y un enlace a la app oficial donde verlo (Movistar Plus+, DAZN, LaLiga TV, RTVE Play, Atresplayer, Mediaset Infinity, Eurosport…).
+- **Parrilla TDT**: programación por horas de La 1, La 2, Antena 3, Cuatro, Telecinco, laSexta, Canal Sur, 24h, Teledeporte y Clan en una línea de tiempo, con enlace a la app de cada cadena (RTVE Play, Atresplayer, Mediaset Infinity, Canal Sur Más).
 
 ## Archivos
 

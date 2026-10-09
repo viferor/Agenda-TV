@@ -2,7 +2,8 @@
 import xml.etree.ElementTree as ET, re, json, sys, datetime as dt, urllib.request, gzip, io
 
 SRC = "https://raw.githubusercontent.com/davidmuma/EPG_dobleM/master/guiatv.xml"
-TVE = [("La 1 HD","La 1"),("La 2","La 2"),("24 Horas","24h"),("Teledeporte","Teledeporte"),("Clan","Clan")]
+TVE = [("La 1 HD","La 1"),("La 2","La 2"),("Antena 3 HD","Antena 3"),("Cuatro HD","Cuatro"),("Telecinco HD","Telecinco"),
+       ("La Sexta HD","laSexta"),("Canal Sur HD","Canal Sur"),("24 Horas","24h"),("Teledeporte","Teledeporte"),("Clan","Clan")]
 
 # canal EPG -> (nombre visible, app oficial, web)
 APPS = [
@@ -10,6 +11,9 @@ APPS = [
     (r"^DAZN", "DAZN", "https://www.dazn.com/es-ES"),
     (r"^LaLiga TV", "LaLiga TV Hypermotion", "https://www.laliga.com/laliga-tv"),
     (r"^(La 1|La 2|Teledeporte|24 Horas|Clan)", "RTVE Play", "https://www.rtve.es/play/"),
+    (r"^(Antena 3|La Sexta)", "Atresplayer", "https://www.atresplayer.com/directos/"),
+    (r"^(Cuatro|Telecinco)", "Mediaset Infinity", "https://www.mitele.es/directo/"),
+    (r"^(Canal Sur|Andalucía TV)", "Canal Sur Más", "https://www.canalsur.es/"),
     (r"^Eurosport", "Eurosport / HBO Max", "https://www.eurosport.es"),
     (r"^etb", "EITB", "https://www.eitb.eus/es/"),
     (r"^(TV3|Esport 3|SX3|3Cat)", "3Cat", "https://www.3cat.cat"),
@@ -77,7 +81,7 @@ def main(path):
     out_ev = sorted(events.values(), key=lambda x: (x["s"], x["ev"]))
     for e in out_ev:
         e["ch"].sort(key=lambda c: (c["vo"], c["c"]))
-    tv = [{"id": k, "name": n, "p": sorted(tve[k], key=lambda x: x["s"])} for k, n in TVE]
+    tv = [{"id": k, "name": n, "app": app_for(k)[0], "url": app_for(k)[1], "p": sorted(tve[k], key=lambda x: x["s"])} for k, n in TVE]
     json.dump({"generado": dt.datetime.now(dt.timezone.utc).isoformat(), "fuente": gen, "eventos": out_ev, "tve": tv},
               open(sys.argv[2], "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     print(len(out_ev), "eventos;", {t["id"]: len(t["p"]) for t in tv})

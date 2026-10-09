@@ -109,7 +109,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" id="tab-agenda" aria-selected="true" data-view="agenda">Agenda deportiva</button>
-    <button class="tab" role="tab" id="tab-tve" aria-selected="false" data-view="tve">Parrilla TVE</button>
+    <button class="tab" role="tab" id="tab-tve" aria-selected="false" data-view="tve">Parrilla TDT</button>
   </div>
 
   <nav class="days" id="days" aria-label="Elegir día"></nav>
@@ -258,6 +258,6 @@ function renderTVE(tick){
 function showDetail(){
   const [ci,pi]=st.sel.split("-").map(Number);
   const c=DATA.tve[ci],p=c.p[pi];
-  $("detail").innerHTML=`<div class="sub">${esc(c.name)} · ${hhmm(p.s)}–${hhmm(p.e)}${p.g?" · "+esc(p.g.replace(","," / ")):""}</div><h3>${esc(p.t)}</h3>${p.d?`<p>${esc(p.d)}</p>`:""}<div><a class="ch" style="text-decoration:none;color:var(--accent);font-weight:600" href="https://www.rtve.es/play/" target="_blank" rel="noopener">Abrir RTVE Play ↗</a></div>`;
+  $("detail").innerHTML=`<div class="sub">${esc(c.name)} · ${hhmm(p.s)}–${hhmm(p.e)}${p.g?" · "+esc(p.g.replace(","," / ")):""}</div><h3>${esc(p.t)}</h3>${p.d?`<p>${esc(p.d)}</p>`:""}<div><a class="ch" style="text-decoration:none;color:var(--accent);font-weight:600" href="${esc(c.url||"https://www.rtve.es/play/")}" target="_blank" rel="noopener">Abrir ${esc(c.app||"RTVE Play")} ↗</a></div>`;
 }
 </script>
