@@ -9,11 +9,11 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Agenda TV">
-<meta name="description" content="Agenda deportiva en directo y parrilla de la TDT">
+<meta name="description" content="Agenda deportiva en directo y parrillas de la TDT y de Movistar Plus+">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
 <style>
-/* Layout: cabecera tipo rótulo de retransmisión, selector de día compartido, dos vistas (agenda en lista / parrilla en línea de tiempo) */
+/* Layout: cabecera tipo rótulo de retransmisión, selector de día compartido, tres vistas (agenda en lista / parrilla en línea de tiempo) */
 :root{
   --bg:#f3f5f8; --surface:#ffffff; --ink:#121a2b; --muted:#5b6578; --line:#dde2ea;
   --accent:#1f4fd8; --accent-soft:#e3eafc; --live:#d6283c; --live-soft:#fde6e9;
@@ -45,7 +45,8 @@ h1 span{color:var(--accent)}
 .offline{color:var(--live);font-weight:600}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tabs::-webkit-scrollbar{display:none}
 .tab{white-space:nowrap;background:none;border:0;padding:10px 14px;font-family:var(--display);font-weight:600;font-size:1.15rem;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
 .tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
 .days{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
@@ -163,7 +164,7 @@ dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
   h1{font-size:2rem}
   .ev{grid-template-columns:60px 1fr;padding:12px 14px}
   .time{font-size:1.35rem}
-  .tab{font-size:1rem;padding:10px 10px}
+  .tab{font-size:.96rem;padding:10px 8px}
   .grid-wrap{grid-template-columns:118px 1fr}
   .names div{font-size:.92rem;padding:0 4px}
 }
@@ -178,6 +179,7 @@ dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" id="tab-agenda" aria-selected="true" data-view="agenda">Agenda deportiva</button>
     <button class="tab" role="tab" id="tab-tve" aria-selected="false" data-view="tve">Parrilla TDT</button>
+    <button class="tab" role="tab" id="tab-mplus" aria-selected="false" data-view="mplus">Movistar Plus+</button>
   </div>
 
   <nav class="days" id="days" aria-label="Elegir día"></nav>
@@ -188,13 +190,13 @@ dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
     <div class="list" id="list"><div class="empty">Cargando…</div></div>
   </section>
 
-  <section id="view-tve" hidden style="display:grid;gap:12px">
+  <section id="view-grid" hidden style="display:grid;gap:12px">
     <div class="bar"><div class="sports favs" id="favs" aria-label="Filtrar canales"></div><div class="jump" id="jump"></div></div>
     <div class="grid-wrap" id="gridwrap">
       <div class="names" id="names"></div>
       <div class="scroller" id="scroller"><div class="track" id="track"></div></div>
     </div>
-    <p class="note" style="margin:0">Toca un programa para ver su ficha. Los programas de pocos minutos aparecen como franjas estrechas.</p>
+    <p class="note" id="grid-note" style="margin:0"></p>
   </section>
 
   <p class="note">Horarios de España peninsular. La hora es la del inicio de la emisión, que suele empezar unos minutos antes del partido. Datos de la guía XMLTV pública EPG dobleM; solo aparecen las emisiones marcadas como directo.</p>
@@ -216,11 +218,22 @@ const SPORTS=[
 const SPORT=Object.fromEntries(SPORTS.map(s=>[s.id,s]));
 const DOW=["dom","lun","mar","mié","jue","vie","sáb"];
 const MON=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
-const st={view:"agenda",day:null,sport:"all",sel:null,favs:new Set(),onlyFav:false};
-try{const f=JSON.parse(localStorage.getItem("agendatv-favs")||"{}");st.favs=new Set(f.ids||[]);st.onlyFav=!!f.only}catch(e){}
-function saveFavs(){try{localStorage.setItem("agendatv-favs",JSON.stringify({ids:[...st.favs],only:st.onlyFav}))}catch(e){}}
+/* Vistas con parrilla: TDT y Movistar Plus+ comparten el mismo dibujo de línea de tiempo
+   (una sola sección en el HTML); cada una guarda sus propios favoritos y su posición de scroll. */
+const GRIDS={
+  tve:{name:"Parrilla TDT",chans:()=>DATA&&DATA.tve||[],
+    note:"Toca un programa para ver su ficha. Los programas de pocos minutos aparecen como franjas estrechas."},
+  mplus:{name:"Movistar Plus+",chans:()=>DATA&&DATA.mplus||[],
+    note:"Toca un programa para ver su ficha. Canales de Movistar Plus+: para verlos hace falta suscripción; el botón abre la web oficial."},
+};
+const st={view:"agenda",day:null,sport:"all",sel:null,favs:new Set(),only:{tve:false,mplus:false},scroll:{}};
+try{const f=JSON.parse(localStorage.getItem("agendatv-favs")||"{}");st.favs=new Set(f.ids||[]);
+  if(f.only&&typeof f.only==="object"){st.only.tve=!!f.only.tve;st.only.mplus=!!f.only.mplus}
+  else if(f.only){st.only.tve=true}}catch(e){}
+function saveFavs(){try{localStorage.setItem("agendatv-favs",JSON.stringify({ids:[...st.favs],only:st.only}))}catch(e){}}
 try{const s=JSON.parse(localStorage.getItem("agendatv")||"{}");if(s.view)st.view=s.view;if(s.sport)st.sport=s.sport}catch(e){}
-if(location.hash==="#tdt")st.view="tve";else if(location.hash==="#agenda")st.view="agenda";
+if(location.hash==="#tdt")st.view="tve";else if(location.hash==="#mplus")st.view="mplus";else if(location.hash==="#agenda")st.view="agenda";
+if(!GRIDS[st.view]&&st.view!=="agenda")st.view="agenda";
 function save(){try{localStorage.setItem("agendatv",JSON.stringify({view:st.view,sport:st.sport}))}catch(e){}}
 
 /* "Hora de pared" de España en ms, para comparar sin líos de zonas horarias */
@@ -239,28 +252,36 @@ fetch("datos.json").then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}
 });
 
 function init(){
-  const g=DATA.fuente.match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}:\d{2})/);
+  const g=(DATA.fuente||"").match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}:\d{2})/);
   $("meta").textContent=g?`Guía actualizada el ${+g[1]} ${MON[+g[2]-1]} a las ${g[4]}`:"";
   const today=dayKey(nowWall());
   const set=new Set();
-  DATA.eventos.forEach(e=>set.add(e.s.slice(0,10)));
-  const la1=DATA.tve[0].p, cnt={};
-  la1.forEach(p=>{const k=p.s.slice(0,10);cnt[k]=(cnt[k]||0)+1});
-  Object.entries(cnt).forEach(([k,n])=>{if(n>=8)set.add(k)});
+  (DATA.eventos||[]).forEach(e=>set.add(e.s.slice(0,10)));
+  // un día tiene parrilla si el canal principal (La 1 / Movistar Plus) trae al menos 8 programas
+  [GRIDS.tve.chans()[0],GRIDS.mplus.chans()[0]].forEach(c=>{
+    if(!c||!c.p)return;
+    const cnt={};
+    c.p.forEach(p=>{const k=p.s.slice(0,10);cnt[k]=(cnt[k]||0)+1});
+    Object.entries(cnt).forEach(([k,n])=>{if(n>=8)set.add(k)});
+  });
   st.days=[...set].filter(k=>k>=today).sort();
   if(!st.days.length)st.days=[...set].sort();
   st.day=st.days.includes(today)?today:st.days[0];
-  document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{st.view=b.dataset.view;save();render()});
+  document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
+    if(st.view===b.dataset.view)return;
+    st.view=b.dataset.view;st.sel=null;save();render();
+  });
   render();netState();
   setInterval(()=>render(true),60000);
 }
 
 function render(tick){
   document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.view===st.view));
-  $("view-agenda").hidden=st.view!=="agenda";
-  $("view-tve").hidden=st.view!=="tve";
+  const agenda=st.view==="agenda";
+  $("view-agenda").hidden=!agenda;
+  $("view-grid").hidden=agenda;
   renderDays();
-  if(st.view==="agenda")renderAgenda();else renderTVE(tick);
+  if(agenda)renderAgenda();else renderGrid(tick);
 }
 
 function renderDays(){
@@ -269,7 +290,7 @@ function renderDays(){
     const d=new Date(k+"T12:00:00Z");
     const lab=k===today?"Hoy":k===tomorrow?"Mañana":DOW[d.getUTCDay()];
     return `<button class="day" aria-pressed="${k===st.day}" data-d="${k}"><small>${lab}</small><b>${d.getUTCDate()}</b><small>${MON[d.getUTCMonth()]}</small></button>`}).join("");
-  $("days").querySelectorAll(".day").forEach(b=>b.onclick=()=>{st.day=b.dataset.d;st.sel=null;st.scrolled=false;render()});
+  $("days").querySelectorAll(".day").forEach(b=>b.onclick=()=>{st.day=b.dataset.d;st.sel=null;st.scroll={};render()});
 }
 
 
@@ -336,20 +357,31 @@ function renderAgenda(){
     </article>`}).join("");
 }
 
-function renderTVE(tick){
+/* Parrilla en línea de tiempo: la misma función dibuja la TDT y Movistar Plus+ */
+function renderGrid(tick){
+  const view=st.view, cfg=GRIDS[view]||GRIDS.tve;
+  const list=cfg.chans();
   const W=innerWidth<560?168:220; /* px por hora */
   const d0=Date.UTC(...st.day.split("-").map((v,i)=>i===1?v-1:+v)), d1=d0+864e5;
   const x=ms=>(ms-d0)/36e5*W;
   const total=24*W;
-  const nf=DATA.tve.filter(c=>st.favs.has(c.id)).length;
-  $("favs").innerHTML=`<button class="chip" aria-pressed="${!st.onlyFav}" data-f="0">Todos los canales</button><button class="chip" aria-pressed="${st.onlyFav}" data-f="1"><span class="s">★</span> Favoritos <em>${nf}</em></button>`;
-  $("favs").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{st.onlyFav=b.dataset.f==="1";st.sel=null;saveFavs();renderTVE(true)});
-  const chans=DATA.tve.map((c,ci)=>({c,ci})).filter(o=>!st.onlyFav||st.favs.has(o.c.id));
-  const gw=$("gridwrap");gw.querySelector(".grid-empty")?.remove();
+  $("grid-note").textContent=cfg.note;
+  const nf=list.filter(c=>st.favs.has(c.id)).length, only=!!st.only[view];
+  $("favs").innerHTML=`<button class="chip" aria-pressed="${!only}" data-f="0">Todos los canales</button><button class="chip" aria-pressed="${only}" data-f="1"><span class="s">★</span> Favoritos <em>${nf}</em></button>`;
+  $("favs").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{st.only[view]=b.dataset.f==="1";st.sel=null;saveFavs();render(true)});
+  const gw=$("gridwrap");
+  gw.querySelectorAll(".grid-empty").forEach(n=>n.remove());
+  if(!list.length){
+    $("names").innerHTML="";$("track").innerHTML="";$("jump").innerHTML="";
+    $("names").hidden=$("scroller").hidden=true;
+    gw.insertAdjacentHTML("beforeend",`<div class="grid-empty">La guía todavía no trae la parrilla de ${esc(cfg.name)}. Vuelve a cargar la página cuando se hayan actualizado los datos.</div>`);
+    return;
+  }
+  const chans=list.map((c,ci)=>({c,ci})).filter(o=>!only||st.favs.has(o.c.id));
   $("names").hidden=$("scroller").hidden=!chans.length;
   if(!chans.length){gw.insertAdjacentHTML("beforeend",'<div class="grid-empty">Aún no tienes canales favoritos. Pulsa «Todos los canales» y toca la ☆ junto al nombre de un canal para añadirlo.</div>')}
   $("names").innerHTML='<div class="hcorner">Canal</div>'+chans.map(({c})=>{const on=st.favs.has(c.id);return `<div><button class="star" aria-pressed="${on}" aria-label="${on?"Quitar":"Añadir"} ${esc(c.name)} ${on?"de":"a"} favoritos" data-id="${esc(c.id)}">${on?"★":"☆"}</button><span>${esc(c.name)}</span></div>`}).join("");
-  $("names").querySelectorAll(".star").forEach(b=>b.onclick=()=>{const id=b.dataset.id;st.favs.has(id)?st.favs.delete(id):st.favs.add(id);saveFavs();renderTVE(true)});
+  $("names").querySelectorAll(".star").forEach(b=>b.onclick=()=>{const id=b.dataset.id;st.favs.has(id)?st.favs.delete(id):st.favs.add(id);saveFavs();render(true)});
   const now=nowWall();
   let hours="";for(let h=0;h<24;h++)hours+=`<span style="left:${h*W}px;width:${W}px">${String(h).padStart(2,"0")}:00</span>`;
   let rows="";
@@ -360,7 +392,7 @@ function renderTVE(tick){
       if(e<=d0||s>=d1)return;
       const L=Math.max(0,x(s)),R=Math.min(total,x(e));
       if(R-L<2)return;
-      const id=ci+"-"+pi, onair=now>=s&&now<e, w=R-L-2;
+      const id=view+":"+ci+"-"+pi, onair=now>=s&&now<e, w=R-L-2;
       const size=w<34?" xs":w<70?" sm":"";
       const name=p.sn?p.sn+(p.se?` T${p.se}`+(p.ep?` E${p.ep}`:""):""):p.t;
       r+=`<button class="prog${size}${st.sel===id?" sel":""}${onair?" onair":""}" style="left:${L+1}px;width:${w}px" data-id="${id}" aria-label="${esc(hhmm(p.s)+" "+p.t)}" title="${esc(hhmm(p.s)+" "+p.t)}"><b>${esc(name)}</b><small>${hhmm(p.s)}–${hhmm(p.e)}</small></button>`;
@@ -368,15 +400,15 @@ function renderTVE(tick){
     rows+=`<div class="row" style="width:${total}px">${r}</div>`;
   });
   const nowLine=now>=d0&&now<d1?`<div class="now" style="left:${x(now)}px"></div>`:"";
-  const sc=$("scroller"), keep=sc.scrollLeft;
   $("track").style.width=total+"px";
   $("track").innerHTML=`<div class="hours" style="width:${total}px">${hours}</div>${rows}${nowLine}`;
   $("track").querySelectorAll(".prog").forEach(b=>b.onclick=()=>{st.sel=b.dataset.id;b.classList.add("sel");showDetail()});
   $("jump").innerHTML=["Mañana|7","Mediodía|13","Tarde|17","Noche|21"].map(v=>{const[n,h]=v.split("|");return `<button data-h="${h}">${n}</button>`}).join("")+(nowLine?'<button data-h="now">Ahora</button>':"");
+  const sc=$("scroller");
   $("jump").querySelectorAll("button").forEach(b=>b.onclick=()=>{const h=b.dataset.h==="now"?(now-d0)/36e5-.5:+b.dataset.h;sc.scrollTo({left:Math.max(0,h*W),behavior:"smooth"})});
-  sc.onscroll=()=>{if(!pinQ){pinQ=true;requestAnimationFrame(pinText)}};
-  if(tick&&st.scrolled){sc.scrollLeft=keep}
-  else{st.scrolled=true;const h=nowLine?(now-d0)/36e5-.5:7;sc.scrollLeft=Math.max(0,h*W)}
+  sc.onscroll=()=>{st.scroll[view]=sc.scrollLeft;if(!pinQ){pinQ=true;requestAnimationFrame(pinText)}};
+  if(tick&&st.scroll[view]!=null){sc.scrollLeft=st.scroll[view]}
+  else{const h=nowLine?(now-d0)/36e5-.5:7;sc.scrollLeft=Math.max(0,h*W);st.scroll[view]=sc.scrollLeft}
   pinText();
 }
 
@@ -384,10 +416,14 @@ let pinQ=false;
 function pinText(){pinQ=false;const sl=$("scroller").scrollLeft;
   $("track").querySelectorAll(".prog").forEach(b=>{const L=b.offsetLeft,w=b.offsetWidth;const off=sl>L?Math.min(sl-L,Math.max(0,w-90)):0;
     b.querySelectorAll("b,small").forEach(t=>t.style.left=off?off+"px":"")})}
-const KIND={"Cine":"Película","Series":"Serie","Deportes":"Deporte","Información":"Informativo","Infantil":"Infantil","Documentales":"Documental","Entretenimiento":"Entretenimiento","Música":"Música","Ocio y Aficiones":"Ocio","Telerrealidad":"Telerrealidad"};
+const KIND={"Cine":"Película","Series":"Serie","Deportes":"Deporte","Información":"Informativo","Infantil":"Infantil","Documentales":"Documental","Entretenimiento":"Entretenimiento","Música":"Música","Ocio y Aficiones":"Ocio","Telerrealidad":"Telerrealidad","Cortometrajes":"Cortometraje"};
 function showDetail(){
-  const [ci,pi]=st.sel.split("-").map(Number);
-  const c=DATA.tve[ci],p=c.p[pi];
+  if(!st.sel)return;
+  const [view,key]=st.sel.split(":");
+  const [ci,pi]=key.split("-").map(Number);
+  const list=(GRIDS[view]||GRIDS.tve).chans();
+  const c=list[ci],p=c&&c.p[pi];
+  if(!p)return;
   const [g1,...gr]=(p.g||"").split(" · ");
   const kind=KIND[g1]||g1||"";
   const s=wall(p.s),e=wall(p.e),now=nowWall();
@@ -411,7 +447,7 @@ function showDetail(){
   const close=()=>{dlg.close()};
   $("sh-close").onclick=close;$("sh-close2").onclick=close;
   dlg.onclick=ev=>{if(ev.target===dlg)close()};
-  dlg.onclose=()=>{st.sel=null;renderTVE(true)};
+  dlg.onclose=()=>{st.sel=null;render(true)};
   if(!dlg.open){try{dlg.showModal()}catch(_){dlg.setAttribute("open","")}}
 }
 /* PWA: service worker, instalación y aviso sin conexión */

@@ -1,7 +1,7 @@
 {
   "name": "Agenda TV",
   "short_name": "Agenda TV",
-  "description": "Agenda deportiva en directo y parrilla de la TDT",
+  "description": "Agenda deportiva en directo y parrillas de la TDT y de Movistar Plus+",
   "lang": "es",
   "start_url": "./",
   "scope": "./",
@@ -16,6 +16,7 @@
   ],
   "shortcuts": [
     {"name": "Agenda deportiva", "url": "./#agenda", "icons": [{"src": "iconos/icono-192.png", "sizes": "192x192"}]},
-    {"name": "Parrilla TDT", "url": "./#tdt", "icons": [{"src": "iconos/icono-192.png", "sizes": "192x192"}]}
+    {"name": "Parrilla TDT", "url": "./#tdt", "icons": [{"src": "iconos/icono-192.png", "sizes": "192x192"}]},
+    {"name": "Movistar Plus+", "url": "./#mplus", "icons": [{"src": "iconos/icono-192.png", "sizes": "192x192"}]}
   ]
 }

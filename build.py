@@ -11,6 +11,19 @@ TVE = [  # TDT nacional sin canales infantiles, en orden aproximado del mando + 
     ("El Toro TV","El Toro TV"),("Squirrel TV","Squirrel"),("Veo7","Veo7"),
     ("Replay","Replay"),("DBike","DBike"),
 ]
+MOVISTAR = [  # parrilla de Movistar Plus+ (canales propios), en orden de dial aproximado:
+    ("Movistar Plus HD","Movistar Plus"),("M+ Cero","M+ Cero"),
+    # cine y series
+    ("M+ Estrenos HD","M+ Estrenos"),("M+ Hits HD","M+ Hits"),("M+ Originales HD","M+ Originales"),
+    ("M+ Acción HD","M+ Acción"),("M+ Comedia HD","M+ Comedia"),("M+ Drama HD","M+ Drama"),
+    ("M+ Clásicos HD","M+ Clásicos"),("M+ Cine Español","M+ Cine Español"),("M+ Indie HD","M+ Indie"),
+    ("M+ Romance","M+ Romance"),("M+ Terror","M+ Terror"),("M+ PopUp","M+ PopUp"),("M+ PopUp 2","M+ PopUp 2"),
+    ("M+ Documentales HD","M+ Documentales"),
+    # deportes
+    ("M+ LaLiga HD","M+ LaLiga"),("M+ LaLiga 2 HD","M+ LaLiga 2"),("M+ Liga de Campeones HD","M+ Liga de Campeones"),
+    ("M+ Vamos HD","M+ Vamos"),("M+ Deportes HD","M+ Deportes"),("M+ Deportes 2 HD","M+ Deportes 2"),
+    ("M+ Golf HD","M+ Golf"),("M+ Baloncesto","M+ Baloncesto"),
+]
 
 # canal EPG -> (nombre visible, app oficial, web)
 APPS = [
@@ -122,11 +135,14 @@ def main(path):
     gen = root.get("generator-info-name", "")
     events = {}
     tve = {k: [] for k, _ in TVE}
+    mp = {k: [] for k, _ in MOVISTAR}
     for p in root.iter("programme"):
         ch = p.get("channel"); title = p.findtext("title") or ""; desc = p.findtext("desc") or ""
         start, stop = ts(p.get("start")), ts(p.get("stop"))
         if ch in tve:
             tve[ch].append(ficha(title, start, stop, desc))
+        elif ch in mp:  # parrilla de Movistar Plus+
+            mp[ch].append(ficha(title, start, stop, desc))
         sport = classify(title, cats(desc))
         if not sport: continue
         ev, rnd, comp, vo = parse_title(title)
@@ -140,9 +156,14 @@ def main(path):
     for e in out_ev:
         e["ch"].sort(key=lambda c: (c["vo"], c["c"]))
     tv = [{"id": k, "name": n, "app": app_for(k)[0], "url": app_for(k)[1], "p": sorted(tve[k], key=lambda x: x["s"])} for k, n in TVE]
-    json.dump({"generado": dt.datetime.now(dt.timezone.utc).isoformat(), "fuente": gen, "eventos": out_ev, "tve": tv},
+    # La 1 HD tiene que seguir siendo el primer canal de "tve": la página lo usa para saber qué días hay parrilla
+    mplus = [{"id": k, "name": n, "app": app_for(k)[0], "url": app_for(k)[1], "p": sorted(mp[k], key=lambda x: x["s"])}
+             for k, n in MOVISTAR]
+    mplus = [c for c in mplus if c["p"]]  # si la guía no trae programación de un canal, no se publica una fila vacía
+    json.dump({"generado": dt.datetime.now(dt.timezone.utc).isoformat(), "fuente": gen, "eventos": out_ev, "tve": tv,
+               "mplus": mplus},
               open(sys.argv[2], "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
-    print(len(out_ev), "eventos;", {t["id"]: len(t["p"]) for t in tv})
+    print(len(out_ev), "eventos;", {t["id"]: len(t["p"]) for t in tv}, "; M+:", {c["id"]: len(c["p"]) for c in mplus})
 
 if __name__ == "__main__":
     # Uso: python3 build.py [guia.xml|--descargar] [salida.json]
