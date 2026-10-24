@@ -56,6 +56,10 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 .day[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 .day[aria-pressed="true"] small{color:inherit;opacity:.8}
 .sports{display:flex;flex-wrap:wrap;gap:6px}
+/* Filtros de contenido: una sola fila deslizable, para que no coman media pantalla en el móvil */
+#genres{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+#genres::-webkit-scrollbar{display:none}
+#genres .chip{flex:0 0 auto}
 .chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px 5px 10px;display:inline-flex;align-items:center;gap:7px;font-weight:500;font-size:.9rem}
 .chip i{width:9px;height:9px;border-radius:50%;background:var(--c,var(--muted))}
 .chip em{font-style:normal;color:var(--muted);font-size:.8rem;font-variant-numeric:tabular-nums}
@@ -192,9 +196,11 @@ dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
 
   <section id="view-grid" hidden style="display:grid;gap:12px">
     <div class="bar"><div class="sports favs" id="favs" aria-label="Filtrar canales"></div><div class="jump" id="jump"></div></div>
+    <div class="sports" id="genres" aria-label="Filtrar por contenido"></div>
     <div class="grid-wrap" id="gridwrap">
       <div class="names" id="names"></div>
       <div class="scroller" id="scroller"><div class="track" id="track"></div></div>
+      <div class="grid-empty" id="grid-msg" hidden></div>
     </div>
     <p class="note" id="grid-note" style="margin:0"></p>
   </section>
@@ -219,22 +225,52 @@ const SPORT=Object.fromEntries(SPORTS.map(s=>[s.id,s]));
 const DOW=["dom","lun","mar","mié","jue","vie","sáb"];
 const MON=["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 /* Vistas con parrilla: TDT y Movistar Plus+ comparten el mismo dibujo de línea de tiempo
-   (una sola sección en el HTML); cada una guarda sus propios favoritos y su posición de scroll. */
+   (una sola sección en el HTML); cada una guarda sus propios favoritos y su posición de scroll.
+   El dial de Movistar Plus+ son más de 150 canales, así que su parrilla va en datos-mplus.json
+   y se descarga solo al abrir esa pestaña. */
 const GRIDS={
   tve:{name:"Parrilla TDT",chans:()=>DATA&&DATA.tve||[],
-    note:"Toca un programa para ver su ficha. Los programas de pocos minutos aparecen como franjas estrechas."},
-  mplus:{name:"Movistar Plus+",chans:()=>DATA&&DATA.mplus||[],
-    note:"Toca un programa para ver su ficha. Canales de Movistar Plus+: para verlos hace falta suscripción; el botón abre la web oficial."},
+    note:"Toca un programa para ver su ficha. Los filtros de contenido agrupan los canales por lo que emiten (cine, series, deportes…). Los programas de pocos minutos aparecen como franjas estrechas."},
+  mplus:{name:"Movistar Plus+",chans:()=>MP.data&&MP.data.mplus||[],
+    note:"Toca un programa para ver su ficha. Está todo el dial de Movistar Plus+ menos los canales de la TDT, que tienen su propia pestaña. Los filtros de contenido agrupan los canales por lo que emiten (cine, deportes…); los numerados (M+ Deportes 3, M+ Liga de Campeones 5…) solo emiten cuando hay varios partidos a la vez. Para verlos hace falta suscripción: el botón abre la web oficial."},
 };
-const st={view:"agenda",day:null,sport:"all",sel:null,favs:new Set(),only:{tve:false,mplus:false},scroll:{}};
+const MP={data:null,loading:false,error:false};
+function loadMplus(){
+  if(MP.data||MP.loading)return;
+  MP.loading=true;
+  fetch("datos-mplus.json").then(r=>{if(!r.ok)throw new Error(r.status);return r.json()})
+    .then(d=>{MP.data=d;MP.loading=false;render(true)})
+    .catch(()=>{MP.loading=false;MP.error=true;render(true)});
+}
+/* Filtros de contenido de la parrilla: cada canal se agrupa por el género que más emite ese día
+   (minutos), no por una etiqueta fija, así no hay que mantener una lista a mano. */
+const GENRES=[
+  {id:"all",name:"Todos"},
+  {id:"cine",name:"Cine"},
+  {id:"series",name:"Series"},
+  {id:"deportes",name:"Deportes"},
+  {id:"docs",name:"Documentales"},
+  {id:"infantil",name:"Infantiles"},
+  {id:"noticias",name:"Noticias"},
+  {id:"musica",name:"Música"},
+  {id:"otros",name:"Otros"},
+];
+const GENRE_OF={"Cine":"cine","Cortometrajes":"cine","Series":"series","Deportes":"deportes","Documentales":"docs",
+  "Infantil":"infantil","Información":"noticias","Música":"musica"};
+const st={view:"agenda",day:null,sport:"all",sel:null,favs:new Set(),only:{tve:false,mplus:false},
+  genre:{tve:"all",mplus:"all"},cats:null,scroll:{}};
 try{const f=JSON.parse(localStorage.getItem("agendatv-favs")||"{}");st.favs=new Set(f.ids||[]);
   if(f.only&&typeof f.only==="object"){st.only.tve=!!f.only.tve;st.only.mplus=!!f.only.mplus}
   else if(f.only){st.only.tve=true}}catch(e){}
 function saveFavs(){try{localStorage.setItem("agendatv-favs",JSON.stringify({ids:[...st.favs],only:st.only}))}catch(e){}}
-try{const s=JSON.parse(localStorage.getItem("agendatv")||"{}");if(s.view)st.view=s.view;if(s.sport)st.sport=s.sport}catch(e){}
+try{const s=JSON.parse(localStorage.getItem("agendatv")||"{}");if(s.view)st.view=s.view;if(s.sport)st.sport=s.sport;
+  if(s.genre&&typeof s.genre==="object"){
+    if(s.genre.tve)st.genre.tve=s.genre.tve;
+    if(s.genre.mplus)st.genre.mplus=s.genre.mplus;
+  }}catch(e){}
 if(location.hash==="#tdt")st.view="tve";else if(location.hash==="#mplus")st.view="mplus";else if(location.hash==="#agenda")st.view="agenda";
 if(!GRIDS[st.view]&&st.view!=="agenda")st.view="agenda";
-function save(){try{localStorage.setItem("agendatv",JSON.stringify({view:st.view,sport:st.sport}))}catch(e){}}
+function save(){try{localStorage.setItem("agendatv",JSON.stringify({view:st.view,sport:st.sport,genre:st.genre}))}catch(e){}}
 
 /* "Hora de pared" de España en ms, para comparar sin líos de zonas horarias */
 function wall(iso){const [d,t]=iso.slice(0,16).split("T");const [Y,M,D]=d.split("-").map(Number);const [h,m]=t.split(":").map(Number);return Date.UTC(Y,M-1,D,h,m)}
@@ -254,6 +290,8 @@ fetch("datos.json").then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}
 function init(){
   const g=(DATA.fuente||"").match(/(\d{2})\/(\d{2})\/(\d{4}) (\d{2}:\d{2})/);
   $("meta").textContent=g?`Guía actualizada el ${+g[1]} ${MON[+g[2]-1]} a las ${g[4]}`:"";
+  if(DATA.mplus)MP.data={mplus:DATA.mplus}; /* datos.json antiguos, con la parrilla dentro */
+  if(st.view==="mplus")loadMplus();
   const today=dayKey(nowWall());
   const set=new Set();
   (DATA.eventos||[]).forEach(e=>set.add(e.s.slice(0,10)));
@@ -358,51 +396,112 @@ function renderAgenda(){
 }
 
 /* Parrilla en línea de tiempo: la misma función dibuja la TDT y Movistar Plus+ */
+function geo(){
+  const W=innerWidth<560?168:220; /* px por hora */
+  const d0=Date.UTC(...st.day.split("-").map((v,i)=>i===1?v-1:+v));
+  return {W,d0,d1:d0+864e5,total:24*W,x:ms=>(ms-d0)/36e5*W};
+}
+/* Cada fila se dibuja al entrar en pantalla: con todo el dial de Movistar Plus+
+   serían más de 20.000 franjas y el móvil se arrastraría. */
+function fillRow(row){
+  if(row.dataset.done)return;
+  const view=row.dataset.view, ci=+row.dataset.ci;
+  const c=((GRIDS[view]||GRIDS.tve).chans()||[])[ci];
+  if(!c)return;
+  const {d0,d1,total,x}=geo(), now=nowWall();
+  let r="";
+  c.p.forEach((p,pi)=>{
+    const s=wall(p.s),e=wall(p.e);
+    if(e<=d0||s>=d1)return;
+    const L=Math.max(0,x(s)),R=Math.min(total,x(e));
+    if(R-L<2)return;
+    const id=view+":"+ci+"-"+pi, onair=now>=s&&now<e, w=R-L-2;
+    const size=w<34?" xs":w<70?" sm":"";
+    const name=p.sn?p.sn+(p.se?` T${p.se}`+(p.ep?` E${p.ep}`:""):""):p.t;
+    r+=`<button class="prog${size}${st.sel===id?" sel":""}${onair?" onair":""}" style="left:${L+1}px;width:${w}px" data-id="${id}" aria-label="${esc(hhmm(p.s)+" "+p.t)}" title="${esc(hhmm(p.s)+" "+p.t)}"><b>${esc(name)}</b><small>${hhmm(p.s)}–${hhmm(p.e)}</small></button>`;
+  });
+  row.dataset.done="1";
+  row.innerHTML=r;
+  row.querySelectorAll(".prog").forEach(b=>b.onclick=()=>{st.sel=b.dataset.id;b.classList.add("sel");showDetail()});
+  pinText();
+}
+let io=null;
+function observeRows(){
+  const rows=$("track").querySelectorAll(".row");
+  if(!("IntersectionObserver" in window)){rows.forEach(fillRow);return}
+  if(!io)io=new IntersectionObserver(es=>es.forEach(en=>{if(en.isIntersecting){fillRow(en.target);io.unobserve(en.target)}}),{rootMargin:"600px 0px"});
+  io.disconnect();
+  rows.forEach(r=>io.observe(r));
+}
+
+/* Categoría de contenido del canal: la trae el campo "cat" de los datos; si falta (datos antiguos)
+   se deduce del género que más emite en toda la semana. */
+function guessCat(c){
+  if(c._cat)return c._cat;
+  const acc={};
+  (c.p||[]).forEach(p=>{const s=wall(p.s),e=wall(p.e);if(e<=s)return;
+    const k=GENRE_OF[(p.g||"").split(" · ")[0]]||"otros";acc[k]=(acc[k]||0)+(e-s)});
+  let best="",bv=0;
+  GENRES.forEach(g=>{if(g.id==="all")return;const v=acc[g.id]||0;if(v>bv){bv=v;best=g.id}});
+  return c._cat=best||"otros";
+}
+const catOf=c=>c.cat||guessCat(c);
+
 function renderGrid(tick){
   const view=st.view, cfg=GRIDS[view]||GRIDS.tve;
   const list=cfg.chans();
-  const W=innerWidth<560?168:220; /* px por hora */
-  const d0=Date.UTC(...st.day.split("-").map((v,i)=>i===1?v-1:+v)), d1=d0+864e5;
-  const x=ms=>(ms-d0)/36e5*W;
-  const total=24*W;
+  const {W,d0,total,x}=geo();
   $("grid-note").textContent=cfg.note;
   const nf=list.filter(c=>st.favs.has(c.id)).length, only=!!st.only[view];
   $("favs").innerHTML=`<button class="chip" aria-pressed="${!only}" data-f="0">Todos los canales</button><button class="chip" aria-pressed="${only}" data-f="1"><span class="s">★</span> Favoritos <em>${nf}</em></button>`;
   $("favs").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{st.only[view]=b.dataset.f==="1";st.sel=null;saveFavs();render(true)});
-  const gw=$("gridwrap");
-  gw.querySelectorAll(".grid-empty").forEach(n=>n.remove());
-  if(!list.length){
+  const msg=$("grid-msg");
+  msg.hidden=true; msg.innerHTML="";
+  const empty=(text,keepFilters)=>{ /* aviso en el hueco de la parrilla */
     $("names").innerHTML="";$("track").innerHTML="";$("jump").innerHTML="";
+    if(!keepFilters)$("genres").innerHTML=""; /* si es un filtro sin resultados, se dejan los chips para poder cambiarlo */
     $("names").hidden=$("scroller").hidden=true;
-    gw.insertAdjacentHTML("beforeend",`<div class="grid-empty">La guía todavía no trae la parrilla de ${esc(cfg.name)}. Vuelve a cargar la página cuando se hayan actualizado los datos.</div>`);
+    msg.innerHTML=text; msg.hidden=false;
+  };
+  if(view==="mplus"&&!MP.data){ /* esta parrilla es grande y va en su propio archivo */
+    if(MP.error){
+      empty('No se pudo cargar la parrilla de Movistar Plus+. Comprueba la conexión y <button class="chip" id="mp-retry">vuelve a intentarlo</button>.');
+      msg.querySelector("#mp-retry").onclick=()=>{MP.error=false;loadMplus();render(true)};
+    }else{
+      empty("Cargando la parrilla de Movistar Plus+… (es la más grande, descarga unos 10 MB)");
+      loadMplus();
+    }
     return;
   }
-  const chans=list.map((c,ci)=>({c,ci})).filter(o=>!only||st.favs.has(o.c.id));
+  if(!list.length){
+    empty(`La guía todavía no trae la parrilla de ${esc(cfg.name)}. Vuelve a cargar la página cuando se hayan actualizado los datos.`);
+    return;
+  }
+  /* filtros de contenido */
+  const gsel=st.genre[view]||"all";
+  const gcount={all:list.length};
+  list.forEach(c=>{const g=catOf(c);gcount[g]=(gcount[g]||0)+1});
+  $("genres").innerHTML=GENRES.map(g=>`<button class="chip" aria-pressed="${gsel===g.id}" data-g="${g.id}">${g.name} <em>${gcount[g.id]||0}</em></button>`).join("");
+  $("genres").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{st.genre[view]=b.dataset.g;st.sel=null;save();render(true)});
+  const chans=list.map((c,ci)=>({c,ci}))
+    .filter(o=>(gsel==="all"||catOf(o.c)===gsel)&&(!only||st.favs.has(o.c.id)));
+  const gname=(GENRES.find(g=>g.id===gsel)||{}).name||"";
   $("names").hidden=$("scroller").hidden=!chans.length;
-  if(!chans.length){gw.insertAdjacentHTML("beforeend",'<div class="grid-empty">Aún no tienes canales favoritos. Pulsa «Todos los canales» y toca la ☆ junto al nombre de un canal para añadirlo.</div>')}
+  if(!chans.length){
+    if(only&&gsel!=="all")empty(`No hay canales de ${esc(gname)} entre tus favoritos este día.`,true);
+    else if(only)empty('Aún no tienes canales favoritos. Pulsa «Todos los canales» y toca la ☆ junto al nombre de un canal para añadirlo.',true);
+    else empty(`No hay canales de ${esc(gname)} este día en esta parrilla.`,true);
+    return;
+  }
   $("names").innerHTML='<div class="hcorner">Canal</div>'+chans.map(({c})=>{const on=st.favs.has(c.id);return `<div><button class="star" aria-pressed="${on}" aria-label="${on?"Quitar":"Añadir"} ${esc(c.name)} ${on?"de":"a"} favoritos" data-id="${esc(c.id)}">${on?"★":"☆"}</button><span>${esc(c.name)}</span></div>`}).join("");
   $("names").querySelectorAll(".star").forEach(b=>b.onclick=()=>{const id=b.dataset.id;st.favs.has(id)?st.favs.delete(id):st.favs.add(id);saveFavs();render(true)});
   const now=nowWall();
   let hours="";for(let h=0;h<24;h++)hours+=`<span style="left:${h*W}px;width:${W}px">${String(h).padStart(2,"0")}:00</span>`;
-  let rows="";
-  chans.forEach(({c,ci})=>{
-    let r="";
-    c.p.forEach((p,pi)=>{
-      const s=wall(p.s),e=wall(p.e);
-      if(e<=d0||s>=d1)return;
-      const L=Math.max(0,x(s)),R=Math.min(total,x(e));
-      if(R-L<2)return;
-      const id=view+":"+ci+"-"+pi, onair=now>=s&&now<e, w=R-L-2;
-      const size=w<34?" xs":w<70?" sm":"";
-      const name=p.sn?p.sn+(p.se?` T${p.se}`+(p.ep?` E${p.ep}`:""):""):p.t;
-      r+=`<button class="prog${size}${st.sel===id?" sel":""}${onair?" onair":""}" style="left:${L+1}px;width:${w}px" data-id="${id}" aria-label="${esc(hhmm(p.s)+" "+p.t)}" title="${esc(hhmm(p.s)+" "+p.t)}"><b>${esc(name)}</b><small>${hhmm(p.s)}–${hhmm(p.e)}</small></button>`;
-    });
-    rows+=`<div class="row" style="width:${total}px">${r}</div>`;
-  });
-  const nowLine=now>=d0&&now<d1?`<div class="now" style="left:${x(now)}px"></div>`:"";
+  const rows=chans.map(({ci})=>`<div class="row" data-view="${view}" data-ci="${ci}" style="width:${total}px"></div>`).join("");
+  const nowLine=now>=d0&&now<d0+864e5?`<div class="now" style="left:${x(now)}px"></div>`:"";
   $("track").style.width=total+"px";
   $("track").innerHTML=`<div class="hours" style="width:${total}px">${hours}</div>${rows}${nowLine}`;
-  $("track").querySelectorAll(".prog").forEach(b=>b.onclick=()=>{st.sel=b.dataset.id;b.classList.add("sel");showDetail()});
+  observeRows();
   $("jump").innerHTML=["Mañana|7","Mediodía|13","Tarde|17","Noche|21"].map(v=>{const[n,h]=v.split("|");return `<button data-h="${h}">${n}</button>`}).join("")+(nowLine?'<button data-h="now">Ahora</button>':"");
   const sc=$("scroller");
   $("jump").querySelectorAll("button").forEach(b=>b.onclick=()=>{const h=b.dataset.h==="now"?(now-d0)/36e5-.5:+b.dataset.h;sc.scrollTo({left:Math.max(0,h*W),behavior:"smooth"})});
@@ -413,8 +512,10 @@ function renderGrid(tick){
 }
 
 let pinQ=false;
-function pinText(){pinQ=false;const sl=$("scroller").scrollLeft;
-  $("track").querySelectorAll(".prog").forEach(b=>{const L=b.offsetLeft,w=b.offsetWidth;const off=sl>L?Math.min(sl-L,Math.max(0,w-90)):0;
+function pinText(){pinQ=false;const sc=$("scroller"),sl=sc.scrollLeft,vw=sc.clientWidth||innerWidth;
+  $("track").querySelectorAll(".prog").forEach(b=>{const L=b.offsetLeft,w=b.offsetWidth;
+    if(L+w<sl-200||L>sl+vw+200)return; /* fuera de la vista: no hay que recolocar su texto */
+    const off=sl>L?Math.min(sl-L,Math.max(0,w-90)):0;
     b.querySelectorAll("b,small").forEach(t=>t.style.left=off?off+"px":"")})}
 const KIND={"Cine":"Película","Series":"Serie","Deportes":"Deporte","Información":"Informativo","Infantil":"Infantil","Documentales":"Documental","Entretenimiento":"Entretenimiento","Música":"Música","Ocio y Aficiones":"Ocio","Telerrealidad":"Telerrealidad","Cortometrajes":"Cortometraje"};
 function showDetail(){
