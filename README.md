@@ -27,6 +27,8 @@ python3 build.py guiatv.xml datos.json      # o a partir de una guía ya descarg
 
 Solo usa la biblioteca estándar de Python 3. El segundo argumento es la salida principal; al lado escribe el otro archivo, con el sufijo `-mplus` (`datos.json` → `datos-mplus.json`). **Los dos se tienen que subir al repositorio**: si el script diario hace `git add datos.json`, hay que añadir también `datos-mplus.json` (o usar `git add -A`).
 
+Si se sube uno y el otro no, la web no se rompe: la pestaña de Movistar Plus+ avisa de que su parrilla es de otra fecha (y dice hasta qué día llega) en vez de quedarse en blanco, y la agenda y la TDT siguen funcionando con `datos.json`. Ese aviso es la señal de que falta subir `datos-mplus.json`.
+
 `datos.json` tiene estas claves: `generado`, `fuente`, `eventos` (agenda deportiva) y `tve` (parrilla de la TDT). `datos-mplus.json` tiene `generado`, `fuente` y `mplus` (parrilla de Movistar Plus+). Las dos parrillas comparten formato:
 
 ```json

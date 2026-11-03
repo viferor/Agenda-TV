@@ -262,6 +262,7 @@ def main(path):
         json.dump({"generado": gen_iso, "fuente": gen, "mplus": mplus}, f, ensure_ascii=False, separators=(",", ":"))
     print(len(out_ev), "eventos;", {t["id"]: len(t["p"]) for t in tv})
     print(mp_out + ":", len(mplus), "canales de Movistar Plus+")
+    print("Sube los dos archivos al repositorio: " + out + " y " + mp_out)
 
 if __name__ == "__main__":
     # Uso: python3 build.py [guia.xml|--descargar] [salida.json]
