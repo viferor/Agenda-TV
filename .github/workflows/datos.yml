@@ -43,14 +43,30 @@ jobs:
                 len(b["mplus"]), "canales de Movistar Plus+;", len(dias), "días")
           PY
 
+      - name: ¿Ha cambiado la guía?
+        id: cambios
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, subprocess
+          # El campo "generado" cambia en cada ejecución: se ignora para no subir commits vacíos.
+          def leer(d):
+              d = dict(d); d.pop("generado", None); return d
+          def nuevo(p):
+              return leer(json.load(open(p, encoding="utf-8")))
+          def anterior(p):
+              try:
+                  return leer(json.loads(subprocess.check_output(["git", "show", "HEAD:" + p]).decode("utf-8")))
+              except Exception:
+                  return None
+          hay = any(nuevo(p) != anterior(p) for p in ("datos.json", "datos-mplus.json"))
+          print("hay=" + ("si" if hay else "no"))
+          PY
+
       - name: Commit y push
+        if: steps.cambios.outputs.hay == 'si'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add datos.json datos-mplus.json
-          if git diff --cached --quiet; then
-            echo "La guía no ha cambiado; no hay nada que subir"
-          else
-            git commit -m "Datos actualizados $(date -u +%F)"
-            git push
-          fi
+          git commit -m "Datos actualizados $(date -u +%F)"
+          git push
