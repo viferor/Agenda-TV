@@ -20,14 +20,18 @@ Página web con tres vistas:
 
 ## Actualizar los datos
 
+**Automático:** el flujo de trabajo [`.github/workflows/datos.yml`](.github/workflows/datos.yml) regenera los dos archivos y los sube a `main` dos veces al día (08:20 y 20:20 UTC). No hay que hacer nada: cuando llega un commit nuevo, Vercel vuelve a desplegar la web con la guía del día. También se puede lanzar a mano desde la pestaña *Actions* del repositorio (*Run workflow*). Si el `git push` del flujo falla con un 403, hay que activar en GitHub *Settings → Actions → General → Workflow permissions* la opción **Read and write permissions**.
+
+**A mano** (solo si quieres forzar una actualización):
+
 ```bash
 python3 build.py --descargar datos.json     # descarga la guía y genera los dos archivos
 python3 build.py guiatv.xml datos.json      # o a partir de una guía ya descargada
 ```
 
-Solo usa la biblioteca estándar de Python 3. El segundo argumento es la salida principal; al lado escribe el otro archivo, con el sufijo `-mplus` (`datos.json` → `datos-mplus.json`). **Los dos se tienen que subir al repositorio**: si el script diario hace `git add datos.json`, hay que añadir también `datos-mplus.json` (o usar `git add -A`).
+Solo usa la biblioteca estándar de Python 3. El segundo argumento es la salida principal; al lado escribe el otro archivo, con el sufijo `-mplus` (`datos.json` → `datos-mplus.json`). **Los dos se tienen que subir al repositorio**: si haces `git add datos.json`, añade también `datos-mplus.json` (o usa `git add -A`).
 
-Si se sube uno y el otro no, la web no se rompe: la pestaña de Movistar Plus+ avisa de que su parrilla es de otra fecha (y dice hasta qué día llega) en vez de quedarse en blanco, y la agenda y la TDT siguen funcionando con `datos.json`. Ese aviso es la señal de que falta subir `datos-mplus.json`.
+Si se sube uno y el otro no, la web no se rompe: la pestaña de Movistar Plus+ avisa de que su parrilla es de otra fecha (y dice hasta qué día llega) con un botón para recargarla, y la agenda y la TDT siguen funcionando con `datos.json`. La página pide siempre los datos y la parrilla con `cache: "no-store"`, así que nunca se queda con una copia vieja del navegador.
 
 `datos.json` tiene estas claves: `generado`, `fuente`, `eventos` (agenda deportiva) y `tve` (parrilla de la TDT). `datos-mplus.json` tiene `generado`, `fuente` y `mplus` (parrilla de Movistar Plus+). Las dos parrillas comparten formato:
 

@@ -1,0 +1,56 @@
+name: Actualizar la guía
+
+# Regenera datos.json y datos-mplus.json con la guía de EPG dobleM y los sube a main.
+# Así la web no depende de que alguien se acuerde de ejecutar build.py en su ordenador.
+# La guía se publica a las 9:00, 13:00, 17:00 y 21:00 (hora de Madrid), así que se actualiza
+# dos veces al día.
+on:
+  schedule:
+    - cron: "20 7,19 * * *" # 08:20 y 20:20 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: datos
+  cancel-in-progress: false
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generar los dos archivos de datos
+        run: python3 build.py --descargar datos.json
+
+      - name: Comprobar que los datos son válidos
+        run: |
+          python3 - <<'PY'
+          import json
+          a = json.load(open("datos.json", encoding="utf-8"))
+          b = json.load(open("datos-mplus.json", encoding="utf-8"))
+          assert a["eventos"], "la agenda se ha quedado sin eventos"
+          assert a["tve"] and a["tve"][0]["p"], "la parrilla de la TDT está vacía"
+          assert b["mplus"], "la parrilla de Movistar Plus+ está vacía"
+          dias = {p["s"][:10] for c in b["mplus"] for p in c["p"]}
+          print(len(a["eventos"]), "eventos;", len(a["tve"]), "canales TDT;",
+                len(b["mplus"]), "canales de Movistar Plus+;", len(dias), "días")
+          PY
+
+      - name: Commit y push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add datos.json datos-mplus.json
+          if git diff --cached --quiet; then
+            echo "La guía no ha cambiado; no hay nada que subir"
+          else
+            git commit -m "Datos actualizados $(date -u +%F)"
+            git push
+          fi

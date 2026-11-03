@@ -235,10 +235,14 @@ const GRIDS={
     note:"Toca un programa para ver su ficha. Está todo el dial de Movistar Plus+ menos los canales de la TDT, que tienen su propia pestaña. Los filtros de contenido agrupan los canales por lo que emiten (cine, deportes…); los numerados (M+ Deportes 3, M+ Liga de Campeones 5…) solo emiten cuando hay varios partidos a la vez. Para verlos hace falta suscripción: el botón abre la web oficial."},
 };
 const MP={data:null,loading:false,error:false,days:null};
-function loadMplus(){
-  if(MP.data||MP.loading)return;
-  MP.loading=true;
-  fetch("datos-mplus.json").then(r=>{if(!r.ok)throw new Error(r.status);return r.json()})
+function loadMplus(force){
+  if(MP.loading)return;
+  if(MP.data&&!force)return;
+  MP.loading=true; MP.error=false;
+  if(force){MP.data=null;MP.days=null}
+  /* cache:"no-store" para que nunca se quede con una copia vieja de la guía */
+  fetch("datos-mplus.json"+(force?"?v="+Date.now():""),{cache:"no-store"})
+    .then(r=>{if(!r.ok)throw new Error(r.status);return r.json()})
     .then(d=>{MP.data=d;MP.loading=false;MP.days=mpDays(d);render(true)})
     .catch(()=>{MP.loading=false;MP.error=true;render(true)});
 }
@@ -293,7 +297,7 @@ const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",
 let DATA=null;
 const $=id=>document.getElementById(id);
 
-fetch("datos.json").then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{DATA=d;init()}).catch(()=>{
+fetch("datos.json",{cache:"no-store"}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(d=>{DATA=d;init()}).catch(()=>{
   $("meta").textContent="No se pudo cargar la guía.";
   $("list").innerHTML='<div class="empty">No se han podido leer los datos de la guía. Recarga la página para intentarlo de nuevo.</div>';
 });
@@ -477,7 +481,7 @@ function renderGrid(tick){
   if(view==="mplus"&&!MP.data){ /* esta parrilla es grande y va en su propio archivo */
     if(MP.error){
       empty('No se pudo cargar la parrilla de Movistar Plus+. Comprueba la conexión y <button class="chip" id="mp-retry">vuelve a intentarlo</button>.');
-      msg.querySelector("#mp-retry").onclick=()=>{MP.error=false;loadMplus();render(true)};
+      msg.querySelector("#mp-retry").onclick=()=>{MP.error=false;loadMplus(true);render(true)};
     }else{
       empty("Cargando la parrilla de Movistar Plus+… (es la más grande, descarga unos 10 MB)");
       loadMplus();
@@ -489,14 +493,15 @@ function renderGrid(tick){
     return;
   }
   /* La parrilla de Movistar Plus+ va en su propio archivo: si ese archivo se ha quedado atrás,
-     es mejor decirlo que dibujar 150 filas vacías. */
+     es mejor decirlo (y ofrecer recargar) que dibujar 150 filas vacías. */
   if(view==="mplus"&&MP.days&&!MP.days.has(st.day)){
     const f=((MP.data&&MP.data.fuente)||"").match(/(\d{2})\/(\d{2})\/(\d{4})/);
     const ultimo=[...MP.days].sort().pop()||"";
     const desde=f?`${+f[1]} ${MON[+f[2]-1]}`:"desconocida";
     const hasta=ultimo?`${+ultimo.slice(8,10)} ${MON[+ultimo.slice(5,7)-1]}`:"";
     empty(`La parrilla de Movistar Plus+ que hay descargada es la del ${desde}${hasta?` y llega hasta el ${hasta}`:""}, así que no tiene programas de este día. `
-      +"Suele pasar cuando se regenera <code>datos.json</code> y no <code>datos-mplus.json</code>: hay que generar los dos y subirlos juntos.");
+      +'<button class="chip" id="mp-reload">Actualizar la parrilla</button>');
+    msg.querySelector("#mp-reload").onclick=()=>{loadMplus(true);render(true)};
     return;
   }
   /* filtros de contenido */
