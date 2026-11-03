@@ -20,7 +20,9 @@ Página web con tres vistas:
 
 ## Actualizar los datos
 
-**Automático:** el flujo de trabajo [`.github/workflows/datos.yml`](.github/workflows/datos.yml) regenera los dos archivos y los sube a `main` dos veces al día (08:20 y 20:20 UTC). No hay que hacer nada: cuando llega un commit nuevo, Vercel vuelve a desplegar la web con la guía del día. También se puede lanzar a mano desde la pestaña *Actions* del repositorio (*Run workflow*). Si el `git push` del flujo falla con un 403, hay que activar en GitHub *Settings → Actions → General → Workflow permissions* la opción **Read and write permissions**.
+**Automático:** el flujo de trabajo [`.github/workflows/datos.yml`](.github/workflows/datos.yml) regenera los dos archivos y los sube a `main` cuatro veces al día (08:10, 12:10, 16:10 y 20:10 UTC, diez minutos después de cada publicación de la guía de dobleM). No hay que hacer nada: cuando llega un commit nuevo, Vercel vuelve a desplegar la web con la guía del día. También se puede lanzar a mano desde la pestaña *Actions* del repositorio (*Run workflow*). Si el `git push` del flujo falla con un 403, hay que activar en GitHub *Settings → Actions → General → Workflow permissions* la opción **Read and write permissions**.
+
+**Desde la web:** el botón **«↻ Actualizar»** de la cabecera vuelve a pedir la guía y la parrilla en ese momento, sin caché, para no tener que recargar la página.
 
 **A mano** (solo si quieres forzar una actualización):
 
