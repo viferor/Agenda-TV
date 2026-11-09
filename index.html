@@ -896,12 +896,13 @@ function exportObj(){
 function makeCode(){
   const ids=chanIds(), n=ids.length;
   const gi=g=>Math.max(0,GENRES.findIndex(x=>x.id===g));
-  const bytes=[1,(st.only.tve?1:0)|(st.only.mplus?2:0)|(VIEWS.indexOf(st.view)<<2),
-    Math.max(0,SPORTS.findIndex(s=>s.id===st.sport)),(gi(st.genre.tve)<<4)|gi(st.genre.mplus),n&255,n>>8];
-  const bits=new Array(Math.ceil(n/8)).fill(0);
-  ids.forEach((id,i)=>{if(st.favs.has(id))bits[i>>3]|=1<<(i&7)});
-  while(bits.length&&bits[bits.length-1]===0)bits.pop(); /* los ceros del final no hacen falta */
-  const all=bytes.concat(bits);
+  /* versión 2: cada favorito es su posición en la lista de canales, en tu orden (la 1 no guardaba el orden) */
+  const wide=n>255;
+  const bytes=[2,(st.only.tve?1:0)|(st.only.mplus?2:0)|(VIEWS.indexOf(st.view)<<2)|(wide?16:0),
+    Math.max(0,SPORTS.findIndex(s=>s.id===st.sport)),(gi(st.genre.tve)<<4)|gi(st.genre.mplus)];
+  const idx=[...st.favs].map(id=>ids.indexOf(id)).filter(i=>i>=0);
+  idx.forEach(i=>{if(wide)bytes.push(i>>8);bytes.push(i&255)});
+  const all=bytes;
   let out="",acc=0,nb=0;
   for(const x of all){acc=(acc<<8)|x;nb+=8;while(nb>=5){out+=B32[(acc>>(nb-5))&31];nb-=5}}
   if(nb)out+=B32[(acc<<(5-nb))&31];
@@ -919,9 +920,16 @@ function readCode(txt){
   if(B32[sum]!==chk)throw new Error("El código no es correcto: revisa que esté bien copiado.");
   const bytes=[];let acc=0,nb=0;
   for(const ch of body){acc=(acc<<5)|B32.indexOf(ch);nb+=5;if(nb>=8){bytes.push((acc>>(nb-8))&255);nb-=8}}
-  if(bytes[0]!==1)throw new Error("Este código es de otra versión de la app.");
   const ids=chanIds(),favs=[];
-  for(let i=0;i<ids.length;i++){const byte=bytes[6+(i>>3)]||0;if(byte&(1<<(i&7)))favs.push(ids[i])}
+  if(bytes[0]===1){ /* códigos antiguos: solo qué canales, sin orden */
+    for(let i=0;i<ids.length;i++){const byte=bytes[6+(i>>3)]||0;if(byte&(1<<(i&7)))favs.push(ids[i])}
+  }else if(bytes[0]===2){
+    const wide=!!(bytes[1]&16), nbits=body.length*5, nbytes=Math.floor(nbits/8);
+    for(let k=4;k+(wide?1:0)<nbytes;k+=wide?2:1){
+      const i=wide?(bytes[k]<<8)|bytes[k+1]:bytes[k];
+      if(ids[i]&&!favs.includes(ids[i]))favs.push(ids[i]);
+    }
+  }else throw new Error("Este código es de otra versión de la app.");
   return {favoritos:favs,soloFavoritos:{tve:!!(bytes[1]&1),mplus:!!(bytes[1]&2)},vista:VIEWS[(bytes[1]>>2)&3]||"agenda",
     deporte:(SPORTS[bytes[2]]||SPORTS[0]).id,contenido:{tve:(GENRES[bytes[3]>>4]||GENRES[0]).id,mplus:(GENRES[bytes[3]&15]||GENRES[0]).id}};
 }
