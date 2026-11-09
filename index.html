@@ -179,6 +179,24 @@ dialog.sheet{border:0;padding:0;width:min(560px,calc(100% - 32px));max-height:mi
 .md-msg.ok{color:var(--tenis)}
 .md-msg.err{color:var(--live)}
 .toast{position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:50;background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:999px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.3);max-width:calc(100% - 32px);text-align:center}
+.ord-bar{position:sticky;top:-18px;z-index:2;background:var(--surface);padding:8px 0;display:flex;flex-wrap:wrap;gap:6px;align-items:center;border-bottom:1px solid var(--line)}
+.ord-bar .btn{padding:7px 11px}
+.ord-bar .cnt{font-size:.85rem;color:var(--muted);margin-left:auto}
+.ord-list{display:grid;gap:0;margin:0;padding:0;list-style:none}
+.ord-h{font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:12px 4px 4px}
+.ord-row{display:grid;grid-template-columns:36px 1fr auto auto;align-items:center;gap:4px;border-top:1px solid var(--line);background:var(--surface);position:relative}
+.ord-row.drag{z-index:5;box-shadow:0 10px 30px rgba(0,0,0,.28);border-radius:8px;opacity:.96}
+.ord-row.drop-before{box-shadow:inset 0 3px 0 var(--accent)}
+.ord-row.drop-after{box-shadow:inset 0 -3px 0 var(--accent)}
+.ord-handle{touch-action:none;cursor:grab;display:grid;place-items:center;height:48px;color:var(--muted);font-size:1.3rem;user-select:none}
+.ord-pick{border:0;background:none;text-align:left;display:flex;align-items:center;gap:10px;padding:10px 6px;min-height:48px;color:inherit;min-width:0}
+.ord-pick .box{flex:none;width:22px;height:22px;border:2px solid var(--line);border-radius:6px;display:grid;place-items:center;font-size:.85rem;color:#fff}
+.ord-row.on .ord-pick .box{background:var(--accent);border-color:var(--accent)}
+.ord-row.on{background:var(--accent-soft)}
+.ord-pick b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ord-pick small{color:var(--muted);font-size:.78rem;white-space:nowrap}
+.ord-mv{border:1px solid var(--line);background:var(--surface);border-radius:8px;width:40px;height:40px;font-size:1rem;color:var(--ink)}
+.ord-mv:disabled{opacity:.35}
 dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
 .sh-in{display:grid;gap:12px;padding:18px 20px 20px;overflow:auto;max-height:inherit}
 .sh-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
@@ -577,8 +595,9 @@ function renderGrid(tick){
   const {W,d0,total,x}=geo();
   $("grid-note").textContent=cfg.note;
   const nf=list.filter(c=>st.favs.has(c.id)).length, only=!!st.only[view];
-  $("favs").innerHTML=`<button class="chip" aria-pressed="${!only}" data-f="0">Todos los canales</button><button class="chip" aria-pressed="${only}" data-f="1"><span class="s">★</span> Favoritos <em>${nf}</em></button>`;
-  $("favs").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{st.only[view]=b.dataset.f==="1";st.sel=null;saveFavs();render(true)});
+  $("favs").innerHTML=`<button class="chip" aria-pressed="${!only}" data-f="0">Todos los canales</button><button class="chip" aria-pressed="${only}" data-f="1"><span class="s">★</span> Favoritos <em>${nf}</em></button>${nf>1?'<button class="chip" id="fav-order">↕ Ordenar</button>':""}`;
+  if($("fav-order"))$("fav-order").onclick=()=>showOrder();
+  $("favs").querySelectorAll(".chip[data-f]").forEach(b=>b.onclick=()=>{st.only[view]=b.dataset.f==="1";st.sel=null;saveFavs();render(true)});
   const msg=$("grid-msg");
   msg.hidden=true; msg.innerHTML="";
   const empty=(text,keepFilters)=>{ /* aviso en el hueco de la parrilla */
@@ -619,8 +638,9 @@ function renderGrid(tick){
   list.forEach(c=>{const g=catOf(c);gcount[g]=(gcount[g]||0)+1});
   $("genres").innerHTML=GENRES.map(g=>`<button class="chip" aria-pressed="${gsel===g.id}" data-g="${g.id}">${g.name} <em>${gcount[g.id]||0}</em></button>`).join("");
   $("genres").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{st.genre[view]=b.dataset.g;st.sel=null;save();render(true)});
-  const chans=list.map((c,ci)=>({c,ci}))
+  let chans=list.map((c,ci)=>({c,ci}))
     .filter(o=>(gsel==="all"||catOf(o.c)===gsel)&&(!only||st.favs.has(o.c.id)));
+  if(only){const ord=[...st.favs];chans.sort((a,b)=>ord.indexOf(a.c.id)-ord.indexOf(b.c.id))} /* en el orden que hayas elegido */
   const gname=(GENRES.find(g=>g.id===gsel)||{}).name||"";
   $("names").hidden=$("scroller").hidden=!chans.length;
   if(!chans.length){
@@ -996,6 +1016,7 @@ function showMyData(){
     <div class="sh-top"><div class="sh-when"><b>Mis favoritos</b> · se guardan solos en este aparato</div><button class="sh-x" id="sh-close" aria-label="Cerrar">✕</button></div>
     <h2 id="sh-title">Pasar favoritos a otro aparato</h2>
     <p class="sh-syn" style="margin:0">Tienes <b>${n}</b> canal${n===1?"":"es"} favorito${n===1?"":"s"}${n?`: ${esc(names.join(", "))}${n>12?"…":""}`:""}. También se pasan tus filtros de favoritos y de contenido y el deporte elegido.</p>
+    ${n>1?'<div class="sh-actions"><button class="btn" id="md-order">↕ Ordenar favoritos</button></div>':""}
     <div class="md-sec">
       <h3>Enviar</h3>
       <div class="sh-actions"><button class="btn primary" id="md-short">Crear código corto</button><button class="btn" id="md-file">${inApp()?"Guardar archivo":"Descargar archivo"}</button></div>
@@ -1015,6 +1036,7 @@ function showMyData(){
     <div class="sh-actions"><button class="btn" id="sh-close2">Cerrar</button></div>`;
   const msg=(t,ok)=>{const m=$("md-msg");m.textContent=t;m.className="md-msg "+(ok===null?"":ok?"ok":"err")};
   const smsg=(t,ok)=>{const m=$("md-save-msg");m.textContent=t;m.className="md-msg "+(ok===null?"":ok?"ok":"err")};
+  if($("md-order"))$("md-order").onclick=()=>showOrder();
   $("md-short").onclick=async()=>{
     const b=$("md-short");b.disabled=true;smsg("Creando código…",null);
     try{
@@ -1089,6 +1111,118 @@ function showMyData(){
   openSheet(isTV?"#md-in":"#md-short");
 }
 $("mydata").onclick=()=>{if(!DATA)return;showMyData()}; /* sin descargar Movistar Plus+: en una TV box es lento */
+
+/* ---------- Ordenar favoritos ----------
+   El orden de los favoritos es el de la parrilla con el filtro «Favoritos». Se puede arrastrar con
+   el dedo (asa ≡), mover con ▲ ▼ (también con el mando) y marcar varios para moverlos a la vez.
+   «Agrupar por tipo» los ordena por el contenido de cada canal, manteniendo tu orden dentro de cada tipo. */
+const TIPO_NOM={cine:"Cine",series:"Series",deportes:"Deportes",docs:"Documentales",infantil:"Infantiles",noticias:"Noticias",musica:"Música",otros:"Generalistas y otros"};
+const ordSel=new Set();
+function chanTipo(id){
+  if(DATA&&DATA.tipos&&DATA.tipos[id])return DATA.tipos[id];
+  const c=[...GRIDS.tve.chans(),...GRIDS.mplus.chans()].find(c=>c.id===id);
+  return c?catOf(c):"otros";
+}
+const tipoIdx=t=>{const i=GENRES.findIndex(g=>g.id===t);return i<0?99:i};
+function setOrder(arr){st.favs=new Set(arr);saveFavs()}
+function moveSel(ids,dir){ /* mueve el bloque marcado: arriba, abajo, al principio o al final */
+  let a=[...st.favs];
+  const sel=new Set(ids);
+  if(dir==="top")a=[...a.filter(x=>sel.has(x)),...a.filter(x=>!sel.has(x))];
+  else if(dir==="bottom")a=[...a.filter(x=>!sel.has(x)),...a.filter(x=>sel.has(x))];
+  else if(dir==="up"){for(let i=1;i<a.length;i++)if(sel.has(a[i])&&!sel.has(a[i-1]))[a[i-1],a[i]]=[a[i],a[i-1]]}
+  else{for(let i=a.length-2;i>=0;i--)if(sel.has(a[i])&&!sel.has(a[i+1]))[a[i],a[i+1]]=[a[i+1],a[i]]}
+  setOrder(a);
+}
+function moveTo(ids,targetId,after){ /* soltar lo arrastrado delante o detrás de otro canal */
+  const sel=new Set(ids);
+  const rest=[...st.favs].filter(x=>!sel.has(x));
+  const moving=[...st.favs].filter(x=>sel.has(x));
+  let i=rest.indexOf(targetId);
+  if(i<0)i=rest.length;else if(after)i++;
+  rest.splice(i,0,...moving);
+  setOrder(rest);
+}
+function showOrder(focusKey){
+  const list=[...st.favs], nm=chanNames(), tveIds=new Set(GRIDS.tve.chans().map(c=>c.id));
+  [...ordSel].forEach(id=>{if(!st.favs.has(id))ordSel.delete(id)});
+  let lastTipo=null,rows="";
+  list.forEach((id,i)=>{
+    const t=chanTipo(id);
+    if(t!==lastTipo){rows+=`<li class="ord-h" aria-hidden="true">${esc(TIPO_NOM[t]||"Otros")}</li>`;lastTipo=t}
+    const on=ordSel.has(id);
+    rows+=`<li class="ord-row${on?" on":""}" data-oid="${esc(id)}">
+      <span class="ord-handle" aria-hidden="true" title="Arrastrar">≡</span>
+      <button class="ord-pick" data-act="pick" data-oid="${esc(id)}" aria-pressed="${on}"><span class="box">${on?"✓":""}</span><span style="display:grid;min-width:0"><b>${esc(nm[id]||id)}</b><small>${tveIds.has(id)?"TDT":"Movistar Plus+"} · ${esc(TIPO_NOM[t]||"Otros")}</small></span></button>
+      <button class="ord-mv" data-act="up" data-oid="${esc(id)}" aria-label="Subir ${esc(nm[id]||id)}" ${i===0?"disabled":""}>▲</button>
+      <button class="ord-mv" data-act="down" data-oid="${esc(id)}" aria-label="Bajar ${esc(nm[id]||id)}" ${i===list.length-1?"disabled":""}>▼</button>
+    </li>`;
+  });
+  const ns=ordSel.size;
+  $("sheet-body").innerHTML=`
+    <div class="sh-top"><div class="sh-when"><b>Ordenar favoritos</b> · ${list.length} canales</div><button class="sh-x" id="sh-close" aria-label="Cerrar">✕</button></div>
+    <p class="sh-syn" style="margin:0">${isTV?"Con OK marcas uno o varios canales; con ◀ ▶ llegas a sus flechas ▲ ▼ para subirlos o bajarlos juntos.":"Arrastra con el asa ≡, o toca los canales para marcar varios y muévelos juntos con las flechas."} Este es el orden de la parrilla con el filtro «Favoritos».</p>
+    <div class="ord-bar">
+      <button class="btn" id="ord-group" title="Ordenar por tipo de contenido">Agrupar por tipo</button>
+      ${ns?`<button class="btn" data-bulk="top">⤒ Al principio</button><button class="btn" data-bulk="bottom">⤓ Al final</button><button class="btn" id="ord-none">Desmarcar</button>`:""}
+      <span class="cnt">${ns?`${ns} marcado${ns===1?"":"s"}`:""}</span>
+    </div>
+    <ul class="ord-list" id="ord-list">${rows}</ul>
+    <div class="sh-actions"><button class="btn primary" id="sh-close2">Hecho</button></div>`;
+  const rerender=key=>{render(true);showOrder(key)};
+  $("ord-group").onclick=()=>{
+    const a=[...st.favs].map((id,i)=>({id,i,t:tipoIdx(chanTipo(id))})).sort((x,y)=>x.t-y.t||x.i-y.i).map(x=>x.id);
+    setOrder(a);rerender("#ord-group");
+  };
+  if($("ord-none"))$("ord-none").onclick=()=>{ordSel.clear();rerender("#ord-group")};
+  $("sheet-body").querySelectorAll("[data-bulk]").forEach(b=>b.onclick=()=>{moveSel([...ordSel],b.dataset.bulk);rerender(`[data-bulk="${b.dataset.bulk}"]`)});
+  $("ord-list").querySelectorAll("button[data-act]").forEach(b=>b.onclick=()=>{
+    const id=b.dataset.oid,act=b.dataset.act;
+    if(act==="pick"){ordSel.has(id)?ordSel.delete(id):ordSel.add(id);rerender(`[data-act="pick"][data-oid="${CSS.escape(id)}"]`);return}
+    /* si el canal está marcado, se mueve todo lo marcado; si no, solo él */
+    moveSel(ordSel.has(id)?[...ordSel]:[id],act);
+    rerender(`[data-act="${act}"][data-oid="${CSS.escape(id)}"]`);
+  });
+  /* arrastrar con el dedo o el ratón */
+  $("ord-list").querySelectorAll(".ord-handle").forEach(hd=>hd.addEventListener("pointerdown",e=>{
+    e.preventDefault();
+    const row=hd.closest(".ord-row"),id=row.dataset.oid,box=$("sheet").querySelector(".sh-in");
+    const rowsEls=[...$("ord-list").querySelectorAll(".ord-row")];
+    const y0=e.clientY,top0=box.scrollTop;let target=null,after=false,raf=0,lastY=e.clientY;
+    row.classList.add("drag");
+    try{hd.setPointerCapture(e.pointerId)}catch(_){}
+    const mark=()=>{
+      rowsEls.forEach(r=>r.classList.remove("drop-before","drop-after"));
+      target=null;
+      for(const r of rowsEls){if(r===row)continue;const b=r.getBoundingClientRect();
+        if(lastY<b.top+b.height/2){target=r;after=false;break}target=r;after=true}
+      if(target)target.classList.add(after?"drop-after":"drop-before");
+    };
+    const scroll=()=>{ /* desplaza la lista si llevas el dedo al borde */
+      const b=box.getBoundingClientRect();
+      if(lastY<b.top+60)box.scrollTop-=12;else if(lastY>b.bottom-60)box.scrollTop+=12;
+      row.style.transform=`translateY(${lastY-y0+(box.scrollTop-top0)}px)`;mark();
+      raf=requestAnimationFrame(scroll);
+    };
+    raf=requestAnimationFrame(scroll);
+    const move=ev=>{lastY=ev.clientY};
+    const up=()=>{
+      cancelAnimationFrame(raf);
+      hd.removeEventListener("pointermove",move);hd.removeEventListener("pointerup",up);hd.removeEventListener("pointercancel",up);
+      row.classList.remove("drag");row.style.transform="";
+      rowsEls.forEach(r=>r.classList.remove("drop-before","drop-after"));
+      if(target){const ids=ordSel.has(id)?[...ordSel]:[id];if(!ids.includes(target.dataset.oid))moveTo(ids,target.dataset.oid,after)}
+      rerender(null);
+    };
+    hd.addEventListener("pointermove",move);hd.addEventListener("pointerup",up);hd.addEventListener("pointercancel",up);
+  }));
+  openSheet(focusKey||(isTV?'[data-act="pick"]':null));
+  if(focusKey){
+    let el=$("sheet-body").querySelector(focusKey);
+    if(el&&el.disabled)el=el.closest(".ord-row").querySelector('[data-act="pick"]'); /* ya arriba o abajo del todo */
+    if(el){el.focus({preventScroll:true});el.scrollIntoView({block:"nearest"})}
+  }
+}
 /* ---------- Tele: mando a distancia, botón Atrás y tamaño ----------
    Se activa en Android sin pantalla táctil (TV box, Android TV, Google TV) o en cuanto se usan
    las flechas sin haber tocado la pantalla. */
@@ -1167,7 +1301,21 @@ function goBack(){
   if(st.q){endSearch();if(isTV)setTimeout(focusDefault,50);return}
   const s=history.state||{};
   if(!s.base&&history.length>1){history.back();return}
-  /* ya en la primera sección */
+  /* sin pasos guardados (por ejemplo, la app se abrió directamente en una parrilla): antes de
+     ofrecer salir, Atrás sube al menú y después vuelve a la Agenda deportiva */
+  const tab=document.querySelector('.tab[aria-selected="true"]');
+  const enMenu=document.activeElement&&document.activeElement.closest&&document.activeElement.closest("header,.tabs,.search");
+  if((isTV&&!enMenu)||(!isTV&&window.scrollY>150)){
+    window.scrollTo({top:0,behavior:"smooth"});
+    if(isTV&&tab)tab.focus({preventScroll:true});
+    lastBackAt=0;return;
+  }
+  if(st.view!=="agenda"){
+    st.view="agenda";st.sel=null;histSet("replace");save();render();
+    if(isTV){const t=document.querySelector('.tab[aria-selected="true"]');if(t)t.focus()}
+    lastBackAt=0;return;
+  }
+  /* ya en la primera sección y arriba del todo */
   const App=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App;
   if(!App||!App.exitApp)return; /* en el navegador no hay app que cerrar */
   const now=Date.now();

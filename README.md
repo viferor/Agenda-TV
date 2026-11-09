@@ -15,6 +15,8 @@ Página web con tres vistas:
   - **Código largo** `AT0…`: no caduca ni necesita conexión. Se basa en la lista fija de canales `ids` de `datos.json`; los canales nuevos deben añadirse al final de las listas de `build.py` para no cambiar el significado de los códigos ya hechos.
   - **Archivo** `agenda-tv-favoritos.json`: en el navegador se descarga; en la app (APK 1.3.0 o más nueva) se guarda en Documentos › AgendaTV. En móvil y tablet se importa con «Elegir archivo…»; en la tele, «Buscar archivo en esta TV» lo encuentra solo en Descargas, Documentos o una memoria USB. También vale un `.txt` con el código o una lista de canales escrita a mano.
 
+- **Ordenar favoritos**: con el filtro «Favoritos» de la parrilla aparece «↕ Ordenar» (también en «★ Mis favoritos»). Los canales se arrastran con el asa ≡, se suben o bajan con ▲ ▼ (con el mando, ◀ ▶ llevan a esas flechas) y se pueden marcar varios para moverlos juntos, o enviarlos al principio o al final. «Agrupar por tipo» los ordena por contenido (series, deportes, generalistas…) manteniendo tu orden dentro de cada tipo; el tipo de cada canal viene en `tipos` de `datos.json`. Ese orden es el de la parrilla con el filtro «Favoritos».
+
 ## Archivos
 
 | Archivo | Qué es |

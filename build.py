@@ -261,7 +261,9 @@ def main(path):
         # "nombres": nombre visible de cada canal, para el panel de favoritos sin tener que descargar
         # la parrilla de Movistar Plus+ (unos 10 MB, demasiado para aparatos lentos como un Mi Box).
         nombres = dict([*TVE, *MOVISTAR])
-        json.dump({"generado": gen_iso, "fuente": gen, "eventos": out_ev, "tve": tv, "ids": ids, "nombres": nombres},
+        json.dump({"generado": gen_iso, "fuente": gen, "eventos": out_ev, "tve": tv, "ids": ids, "nombres": nombres,
+                   # "tipos": categoría de contenido de cada canal, para agrupar los favoritos por tipo
+                   "tipos": {c["id"]: c["cat"] for c in tv + mplus}},
                   f, ensure_ascii=False, separators=(",", ":"))
     # El dial de Movistar Plus+ son ~150 canales con siete días de programación: va en su propio
     # archivo (datos-mplus.json) y la página lo descarga solo al abrir esa pestaña.
