@@ -91,6 +91,7 @@ APPS = [
     (r"^(Cuatro|Telecinco|Factoría de Ficción|Energy|Divinity|Be Mad)", "Mediaset Infinity", "https://www.mitele.es/directo/"),
     (r"^(Canal Sur|Andalucía TV)", "Canal Sur Más", "https://www.canalsur.es/"),
     (r"^TRECE", "TRECE", "https://www.trecetv.es"),
+    (r"^La Séptima$", "YouTube (directo gratis)", "https://www.youtube.com/channel/UCOCGPFW1UqPP9zdol7vEK1A/live"),
     (r"^Replay$", "Replay (web gratuita)", "https://www.replaytv.es/en-directo"),
     (r"^Real Madrid TV", "Real Madrid TV", "https://www.realmadrid.com"),
     (r"^Eurosport", "Eurosport / HBO Max", "https://www.eurosport.es"),
