@@ -1,7 +1,8 @@
 name: APK Android
 
 # Compila la app Android de Agenda TV (Capacitor) y la publica como release de GitHub.
-# - Al subir una etiqueta vX.Y.Z (por ejemplo v1.0.0) crea la release "Agenda TV X.Y.Z" con la APK.
+# - Al publicar una release con etiqueta vX.Y.Z desde GitHub (Releases → Draft a new release), o al
+#   subir esa etiqueta, compila la APK y la adjunta a la release "Agenda TV X.Y.Z".
 # - También se puede lanzar a mano desde la pestaña Actions; entonces la APK queda como artefacto
 #   descargable de esa ejecución, sin crear release.
 # La app abre https://agenda-tv-viferor.vercel.app, así que no hace falta recompilarla cuando
@@ -12,9 +13,15 @@ name: APK Android
 #   ANDROID_KEYSTORE_B64       el archivo .jks codificado en base64
 #   ANDROID_KEYSTORE_PASSWORD  su contraseña (alias de la clave: agendatv)
 on:
+  release:
+    types: [published]
   push:
     tags: ["v*"]
   workflow_dispatch:
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
