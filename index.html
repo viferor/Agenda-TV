@@ -170,6 +170,14 @@ html.tv .tv-hint{display:block}
 .now{position:absolute;top:0;bottom:0;width:2px;background:var(--live);z-index:1;pointer-events:none}
 .now::before{content:"";position:absolute;top:0;left:-4px;width:10px;height:10px;border-radius:50%;background:var(--live)}
 dialog.sheet{border:0;padding:0;width:min(560px,calc(100% - 32px));max-height:min(86vh,760px);border-radius:14px;background:var(--surface);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.md-code{font-family:ui-monospace,"Cascadia Mono",Menlo,Consolas,monospace;font-size:1.15rem;letter-spacing:.06em;background:var(--block);border-radius:8px;padding:12px 14px;word-break:break-all;user-select:all;line-height:1.5}
+.md-sec{display:grid;gap:10px;border-top:1px solid var(--line);padding-top:14px}
+.md-sec h3{margin:0;font-size:1rem}
+.md-sec p{margin:0;color:var(--muted);font-size:.9rem;max-width:62ch}
+.md-in{font:inherit;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1.05rem;letter-spacing:.04em;width:100%;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;text-transform:uppercase}
+.md-msg{font-size:.9rem;font-weight:600}
+.md-msg.ok{color:var(--tenis)}
+.md-msg.err{color:var(--live)}
 dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
 .sh-in{display:grid;gap:12px;padding:18px 20px 20px;overflow:auto;max-height:inherit}
 .sh-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
@@ -222,7 +230,7 @@ dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
 <div class="wrap">
   <header>
     <h1>Agenda <span>TV</span></h1>
-    <div class="hdr-r"><div class="meta" id="meta">Cargando la guía…</div><button class="install ghost" id="refresh" title="Volver a descargar la guía ahora mismo">↻ Actualizar</button><button class="install" id="install" hidden>Instalar app</button></div>
+    <div class="hdr-r"><div class="meta" id="meta">Cargando la guía…</div><button class="install ghost" id="refresh" title="Volver a descargar la guía ahora mismo">↻ Actualizar</button><button class="install ghost" id="mydata" title="Guardar o importar tus favoritos y preferencias">★ Mis favoritos</button><button class="install" id="install" hidden>Instalar app</button></div>
   </header>
 
   <div class="search" role="search">
@@ -619,7 +627,18 @@ function renderGrid(tick){
     return;
   }
   $("names").innerHTML='<div class="hcorner">Canal</div>'+chans.map(({c})=>{const on=st.favs.has(c.id);return `<div><button class="star" aria-pressed="${on}" aria-label="${on?"Quitar":"Añadir"} ${esc(c.name)} ${on?"de":"a"} favoritos" data-id="${esc(c.id)}">${on?"★":"☆"}</button><span>${esc(c.name)}</span></div>`}).join("");
-  $("names").querySelectorAll(".star").forEach(b=>b.onclick=()=>{const id=b.dataset.id;st.favs.has(id)?st.favs.delete(id):st.favs.add(id);saveFavs();render(true)});
+  $("names").querySelectorAll(".star").forEach(b=>b.onclick=()=>{
+    const id=b.dataset.id, stars=[...$("names").querySelectorAll(".star")], i=stars.indexOf(b), hadFocus=document.activeElement===b;
+    st.favs.has(id)?st.favs.delete(id):st.favs.add(id);saveFavs();
+    const sl=$("scroller").scrollLeft;
+    render(true);
+    $("scroller").scrollLeft=sl;
+    if(hadFocus||isTV){ /* seguir en la columna para marcar el siguiente sin volver arriba */
+      const now=[...$("names").querySelectorAll(".star")];
+      const el=now.find(s=>s.dataset.id===id)||now[Math.min(i,now.length-1)];
+      if(el)el.focus({preventScroll:false});
+    }
+  });
   const now=nowWall();
   let hours="";for(let h=0;h<24;h++)hours+=`<span style="left:${h*W}px;width:${W}px">${String(h).padStart(2,"0")}:00</span>`;
   const rows=chans.map(({ci})=>`<div class="row" data-view="${view}" data-ci="${ci}" style="width:${total}px"></div>`).join("");
@@ -669,9 +688,13 @@ function showDetail(){
     ${p.d?`<p class="sh-syn">${esc(p.d)}</p>`:'<p class="sh-syn none">La guía no trae sinopsis para este programa.</p>'}
     ${cr}
     <div class="sh-actions">${c.url?`<a class="btn primary" href="${esc(c.url)}" target="_blank" rel="noopener">Ver en ${esc(c.app)} ↗</a>`:""}<button class="btn" id="sh-close2">Cerrar</button></div>`;
+  openSheet(".btn.primary,#sh-close2");
+}
+/* Abre el panel (ficha o "Mis favoritos") con su paso en el historial para que Atrás lo cierre */
+function openSheet(focusSel){
   const dlg=$("sheet");
   const close=()=>closeSheet();
-  $("sh-close").onclick=close;$("sh-close2").onclick=close;
+  dlg.querySelectorAll("#sh-close,#sh-close2").forEach(b=>b.onclick=close);
   dlg.onclick=ev=>{if(ev.target===dlg)close()};
   dlg.onclose=()=>{
     st.sel=null;
@@ -684,9 +707,9 @@ function showDetail(){
     sheetFrom=document.activeElement;
     try{dlg.showModal()}catch(_){dlg.setAttribute("open","")}
     if(!(history.state&&history.state.m==="sheet"))history.pushState({...(history.state||{}),m:"sheet"},"");
-    const first=dlg.querySelector(".btn.primary")||$("sh-close2");
-    if(isTV&&first)first.focus();
   }
+  const first=focusSel&&dlg.querySelector(focusSel);
+  if(isTV&&first)first.focus();
 }
 
 /* ---------- Buscador: canales, eventos deportivos y programas de las dos parrillas ----------
@@ -826,6 +849,111 @@ $("q").addEventListener("keydown",e=>{
 });
 $("q-clear").onclick=()=>{endSearch();$("q").focus()};
 
+
+/* ---------- Mis favoritos: guardar e importar favoritos y preferencias ----------
+   Se guardan solos en este aparato; aquí se pueden pasar a otro (del móvil a la tele, por ejemplo)
+   con un código corto o con un archivo. El código marca los canales favoritos sobre la lista fija
+   de canales que trae datos.json ("ids"), más las preferencias básicas, en base32 legible. */
+const B32="0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+function chanIds(){
+  if(DATA&&DATA.ids)return DATA.ids;
+  const ids=[...GRIDS.tve.chans().map(c=>c.id),...GRIDS.mplus.chans().map(c=>c.id)];
+  return [...new Set(ids)];
+}
+const VIEWS=["agenda","tve","mplus"];
+function exportObj(){
+  return {app:"agenda-tv",v:1,fecha:new Date().toISOString().slice(0,10),favoritos:[...st.favs],
+    soloFavoritos:{...st.only},deporte:st.sport,contenido:{...st.genre},vista:st.view};
+}
+function makeCode(){
+  const ids=chanIds(), n=ids.length;
+  const gi=g=>Math.max(0,GENRES.findIndex(x=>x.id===g));
+  const bytes=[1,(st.only.tve?1:0)|(st.only.mplus?2:0)|(VIEWS.indexOf(st.view)<<2),
+    Math.max(0,SPORTS.findIndex(s=>s.id===st.sport)),(gi(st.genre.tve)<<4)|gi(st.genre.mplus),n&255,n>>8];
+  const bits=new Array(Math.ceil(n/8)).fill(0);
+  ids.forEach((id,i)=>{if(st.favs.has(id))bits[i>>3]|=1<<(i&7)});
+  while(bits.length&&bits[bits.length-1]===0)bits.pop(); /* los ceros del final no hacen falta */
+  const all=bytes.concat(bits);
+  let out="",acc=0,nb=0;
+  for(const x of all){acc=(acc<<8)|x;nb+=8;while(nb>=5){out+=B32[(acc>>(nb-5))&31];nb-=5}}
+  if(nb)out+=B32[(acc<<(5-nb))&31];
+  let sum=0;for(const ch of out)sum=(sum+B32.indexOf(ch))%32;
+  out+=B32[sum];
+  return ("AT"+out).match(/.{1,4}/g).join("-");
+}
+function readCode(txt){
+  let s=String(txt||"").toUpperCase().replace(/[\s-]/g,"").replace(/O/g,"0").replace(/[IL]/g,"1").replace(/U/g,"V");
+  if(!s.startsWith("AT"))throw new Error("El código debe empezar por AT.");
+  s=s.slice(2);
+  if(s.length<10)throw new Error("Al código le faltan caracteres.");
+  const body=s.slice(0,-1),chk=s.slice(-1);
+  let sum=0;for(const ch of body){const v=B32.indexOf(ch);if(v<0)throw new Error(`El carácter «${ch}» no puede estar en un código.`);sum=(sum+v)%32}
+  if(B32[sum]!==chk)throw new Error("El código no es correcto: revisa que esté bien copiado.");
+  const bytes=[];let acc=0,nb=0;
+  for(const ch of body){acc=(acc<<5)|B32.indexOf(ch);nb+=5;if(nb>=8){bytes.push((acc>>(nb-8))&255);nb-=8}}
+  if(bytes[0]!==1)throw new Error("Este código es de otra versión de la app.");
+  const ids=chanIds(),favs=[];
+  for(let i=0;i<ids.length;i++){const byte=bytes[6+(i>>3)]||0;if(byte&(1<<(i&7)))favs.push(ids[i])}
+  return {favoritos:favs,soloFavoritos:{tve:!!(bytes[1]&1),mplus:!!(bytes[1]&2)},vista:VIEWS[(bytes[1]>>2)&3]||"agenda",
+    deporte:(SPORTS[bytes[2]]||SPORTS[0]).id,contenido:{tve:(GENRES[bytes[3]>>4]||GENRES[0]).id,mplus:(GENRES[bytes[3]&15]||GENRES[0]).id}};
+}
+function applyImport(o,mode){
+  if(!o||!Array.isArray(o.favoritos))throw new Error("No hay favoritos que importar.");
+  const before=st.favs.size;
+  if(mode==="replace")st.favs=new Set(o.favoritos);else o.favoritos.forEach(id=>st.favs.add(id));
+  if(o.soloFavoritos){st.only.tve=!!o.soloFavoritos.tve;st.only.mplus=!!o.soloFavoritos.mplus}
+  if(o.deporte&&SPORT[o.deporte])st.sport=o.deporte;
+  if(o.contenido){["tve","mplus"].forEach(k=>{if(GENRES.some(g=>g.id===o.contenido[k]))st.genre[k]=o.contenido[k]})}
+  saveFavs();save();
+  const pl=(n,a,b)=>`${n} ${n===1?a:b}`;
+  return mode==="replace"?`Listo: ahora tienes ${pl(st.favs.size,"canal favorito","canales favoritos")} y tus preferencias importadas.`:`Listo: se han añadido ${pl(st.favs.size-before,"favorito","favoritos")} (ahora tienes ${st.favs.size}).`;
+}
+const inApp=()=>!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+function showMyData(){
+  const code=makeCode(), n=st.favs.size;
+  const names=[...st.favs].slice(0,12).map(id=>{const c=[...GRIDS.tve.chans(),...GRIDS.mplus.chans()].find(c=>c.id===id);return c?c.name:id.replace(/ HD$/,"")});
+  $("sheet-body").innerHTML=`
+    <div class="sh-top"><div class="sh-when"><b>Mis favoritos</b> · se guardan solos en este aparato</div><button class="sh-x" id="sh-close" aria-label="Cerrar">✕</button></div>
+    <h2 id="sh-title">Pasar favoritos a otro aparato</h2>
+    <p class="sh-syn" style="margin:0">Tienes <b>${n}</b> canal${n===1?"":"es"} favorito${n===1?"":"s"}${n?`: ${esc(names.join(", "))}${n>12?"…":""}`:""}. El código también guarda tus filtros de favoritos y de contenido y el deporte elegido.</p>
+    <div class="md-sec">
+      <h3>Guardar</h3>
+      <div class="md-code" id="md-code">${esc(code)}</div>
+      <div class="sh-actions"><button class="btn primary" id="md-copy">Copiar código</button>${inApp()?"":'<button class="btn" id="md-file">Descargar archivo</button>'}</div>
+      <p>Apunta o copia el código y escríbelo en el otro aparato, en «Importar». Da igual escribirlo en mayúsculas o minúsculas, y los guiones son opcionales.</p>
+    </div>
+    <div class="md-sec">
+      <h3>Importar</h3>
+      <input class="md-in" id="md-in" type="text" placeholder="AT…" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" aria-label="Código de favoritos">
+      <div class="sh-actions"><button class="btn primary" id="md-replace">Sustituir mis favoritos</button><button class="btn" id="md-add">Añadir a los míos</button><label class="btn" for="md-pick" tabindex="0" id="md-pick-l">Elegir archivo…</label><input type="file" id="md-pick" accept=".json,.txt,application/json,text/plain" hidden></div>
+      <div class="md-msg" id="md-msg" role="status"></div>
+    </div>
+    <div class="sh-actions"><button class="btn" id="sh-close2">Cerrar</button></div>`;
+  const msg=(t,ok)=>{const m=$("md-msg");m.textContent=t;m.className="md-msg "+(ok?"ok":"err")};
+  $("md-copy").onclick=async()=>{
+    try{await navigator.clipboard.writeText(code);$("md-copy").textContent="Copiado ✓"}
+    catch(_){const r=document.createRange();r.selectNodeContents($("md-code"));const s=getSelection();s.removeAllRanges();s.addRange(r);$("md-copy").textContent="Código seleccionado"}
+  };
+  if($("md-file"))$("md-file").onclick=()=>{
+    const blob=new Blob([JSON.stringify(exportObj(),null,2)],{type:"application/json"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`agenda-tv-favoritos-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
+  };
+  const parse=t=>{t=String(t||"").trim();if(!t)throw new Error("Escribe o pega el código primero.");
+    if(t.startsWith("{")){const o=JSON.parse(t);if(o.app!=="agenda-tv")throw new Error("Ese archivo no es de Agenda TV.");return o}
+    return readCode(t)};
+  const doImport=mode=>{try{const o=parse($("md-in").value);const t=applyImport(o,mode);render(true);showMyData();$("md-msg").textContent=t;$("md-msg").className="md-msg ok"}catch(e){msg(e.message||"No se ha podido importar.",false)}};
+  $("md-replace").onclick=()=>doImport("replace");
+  $("md-add").onclick=()=>doImport("add");
+  $("md-in").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("md-in").blur();$("md-replace").focus()}});
+  $("md-pick-l").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();$("md-pick").click()}});
+  $("md-pick").onchange=()=>{
+    const f=$("md-pick").files[0];if(!f)return;
+    f.text().then(t=>{try{const r=applyImport(parse(t),"replace");render(true);showMyData();$("md-msg").textContent=r;$("md-msg").className="md-msg ok"}catch(e){msg(e.message||"No se ha podido leer el archivo.",false)}});
+  };
+  openSheet("#md-copy");
+}
+$("mydata").onclick=()=>{if(!DATA)return;if(!MP.data&&!MP.loading)loadMplus();showMyData()};
 /* ---------- Tele: mando a distancia, botón Atrás y tamaño ----------
    Se activa en Android sin pantalla táctil (TV box, Android TV, Google TV) o en cuanto se usan
    las flechas sin haber tocado la pantalla. */
@@ -946,9 +1074,15 @@ function gridKey(e,el){
   }
   return false;
 }
-function starKey(e,el){ /* desde la estrella de favoritos, ▶ entra en la fila */
-  if(e.key!=="ArrowRight")return false;
+function starKey(e,el){ /* columna de favoritos: ▲ ▼ siguen por la columna y ▶ entra en la fila */
   const names=[...$("names").children],i=names.indexOf(el.closest("#names > div"));
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+    const to=names[i+(e.key==="ArrowDown"?1:-1)];
+    const s=to&&to.querySelector(".star");
+    if(s){s.focus({preventScroll:true});s.scrollIntoView({block:"nearest"});return true}
+    return false;
+  }
+  if(e.key!=="ArrowRight")return false;
   const row=$("track").querySelectorAll(".row")[i-1];
   const p=row&&firstVisibleProg(row);
   if(p){focusProg(p);return true}
@@ -956,11 +1090,15 @@ function starKey(e,el){ /* desde la estrella de favoritos, ▶ entra en la fila 
 }
 
 /* Navegación general con las flechas: busca el elemento más cercano en esa dirección */
-const FOCUSABLE='button:not([disabled]),a[href],input:not([type=hidden])';
+const FOCUSABLE='button:not([disabled]),a[href],input:not([type=hidden]),[tabindex="0"]';
 function visibleEl(el){
   if(el.closest("[hidden]"))return false;
   const r=el.getBoundingClientRect();
-  return r.width>0&&r.height>0;
+  if(!(r.width>0&&r.height>0))return false;
+  /* dentro de una zona con scroll horizontal (parrilla, días, filtros) solo cuenta la parte que se ve */
+  const box=el.closest("#scroller,.days,.tabs,#genres");
+  if(box){const b=box.getBoundingClientRect();if(r.right<=b.left+4||r.left>=b.right-4)return false}
+  return true;
 }
 function spatial(dir,from){
   const scope=$("sheet").open?$("sheet"):document;

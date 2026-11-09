@@ -255,7 +255,10 @@ def main(path):
     gen_iso = dt.datetime.now(dt.timezone.utc).isoformat()
     out = sys.argv[2]
     with open(out, "w", encoding="utf-8") as f:
-        json.dump({"generado": gen_iso, "fuente": gen, "eventos": out_ev, "tve": tv},
+        # "ids": todos los canales de las dos parrillas en un orden fijo; los códigos de copia de
+        # favoritos de la web se basan en este orden (los canales nuevos se añaden al final).
+        ids = list(dict.fromkeys([k for k, _ in TVE] + [k for k, _ in MOVISTAR]))
+        json.dump({"generado": gen_iso, "fuente": gen, "eventos": out_ev, "tve": tv, "ids": ids},
                   f, ensure_ascii=False, separators=(",", ":"))
     # El dial de Movistar Plus+ son ~150 canales con siete días de programación: va en su propio
     # archivo (datos-mplus.json) y la página lo descarga solo al abrir esa pestaña.

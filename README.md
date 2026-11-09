@@ -10,6 +10,8 @@ Página web con tres vistas:
 
 - **Buscador**: la caja de arriba busca a la vez en canales, partidos de la agenda y programas de las dos parrillas, sin distinguir mayúsculas ni tildes y desde ahora hasta el final de la guía. Los programas coinciden por título, serie, episodio, dirección o reparto (por ejemplo, el nombre de un actor). Al tocar un resultado se abre la ficha del programa, el partido en la agenda o el canal en su parrilla.
 
+- **Mis favoritos**: los favoritos y las preferencias se guardan solos en cada aparato. El botón «★ Mis favoritos» da un código corto (empieza por `AT`) para pasarlos a otro aparato —del móvil a la tele, por ejemplo— escribiéndolo en «Importar», donde se puede sustituir o añadir a los que ya hay. En el navegador también se pueden descargar e importar como archivo `.json`. El código se basa en la lista fija de canales `ids` de `datos.json`; los canales nuevos deben añadirse al final de las listas de `build.py` para no cambiar el significado de los códigos ya hechos.
+
 ## Archivos
 
 | Archivo | Qué es |
@@ -80,7 +82,8 @@ En [Releases](https://github.com/viferor/Agenda-TV/releases) está la APK para m
 - agranda la interfaz y marca muy visible el elemento seleccionado;
 - en la parrilla, ◀ ▶ pasan al programa anterior o siguiente del canal, ▲ ▼ cambian de canal a la misma hora y OK abre la ficha;
 - la caja de búsqueda solo abre el teclado al pulsar OK; la tecla Buscar del teclado lo cierra y salta al primer resultado;
-- el botón Atrás cierra primero la ficha, luego la búsqueda y luego vuelve a la pestaña anterior antes de salir (también funciona en el navegador).
+- el botón Atrás cierra primero la ficha, luego la búsqueda y luego vuelve a la pestaña anterior antes de salir (también funciona en el navegador). En la app lo hace posible el plugin `@capacitor/app` (desde la versión 1.2.0);
+- en la columna de canales, ▲ ▼ recorren las estrellas para marcar favoritos seguidos y ▶ entra en la fila.
 
 La preparación del proyecto Android para la tele está en `app-android/tv.py`, que el workflow ejecuta después de generar el proyecto.
 
