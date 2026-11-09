@@ -47,6 +47,17 @@ h1 span{color:var(--accent)}
 .offline{color:var(--live);font-weight:600}
 button{font:inherit;color:inherit;cursor:pointer}
 button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Modo tele (TV box / Android TV con mando): foco muy visible y algo más de tamaño */
+html.tv{scroll-padding:80px 0}
+html.tv .wrap{max-width:none}
+html.tv :is(button,a,input):focus{outline:3px solid var(--accent);outline-offset:3px;box-shadow:0 0 0 7px color-mix(in srgb,var(--accent) 25%,transparent)}
+html.tv .prog:focus{outline:3px solid var(--accent);outline-offset:-3px;background:var(--accent-soft);z-index:3;box-shadow:none}
+html.tv .prog.xs:focus{outline-width:3px}
+html.tv .sr:focus,html.tv .chans-r button:focus{background:var(--accent-soft);outline-offset:-3px}
+html.tv .tab:focus{color:var(--ink);outline-offset:-3px}
+html.tv .search input[readonly]{caret-color:transparent}
+html.tv .tv-hint{display:block}
+.tv-hint{display:none;font-size:.85rem;color:var(--muted)}
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .tabs::-webkit-scrollbar{display:none}
 .tab{white-space:nowrap;background:none;border:0;padding:10px 14px;font-family:var(--display);font-weight:600;font-size:1.15rem;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
@@ -248,6 +259,7 @@ dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
       <div class="grid-empty" id="grid-msg" hidden></div>
     </div>
     <p class="note" id="grid-note" style="margin:0"></p>
+    <p class="tv-hint" style="margin:0">Mando: ◀ ▶ programa anterior o siguiente · ▲ ▼ otro canal a la misma hora · OK abre la ficha · Atrás vuelve.</p>
   </section>
 
   <p class="note">Horarios de España peninsular. La hora es la del inicio de la emisión, que suele empezar unos minutos antes del partido. Datos de la guía XMLTV pública EPG dobleM; solo aparecen las emisiones marcadas como directo.</p>
@@ -373,12 +385,14 @@ function init(){
   if(st.view==="mplus")loadMplus();
   computeDays();
   document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
-    if(st.q){clearSearch()}
+    if(st.q){clearSearch();st.view=b.dataset.view;histSet("replace")}
     else if(st.view===b.dataset.view)return;
-    st.view=b.dataset.view;st.sel=null;save();render();
+    else{st.view=b.dataset.view;histSet("push")}
+    st.sel=null;save();render();
   });
+  histSet("replace",true);
   render();netState();
-  setInterval(()=>render(true),60000);
+  setInterval(()=>keepFocus(()=>render(true)),60000);
 }
 /* Recargar a voluntad, sin esperar a la actualización automática ni a la caché del navegador */
 async function refresh(){
@@ -654,11 +668,23 @@ function showDetail(){
     ${cr}
     <div class="sh-actions">${c.url?`<a class="btn primary" href="${esc(c.url)}" target="_blank" rel="noopener">Ver en ${esc(c.app)} ↗</a>`:""}<button class="btn" id="sh-close2">Cerrar</button></div>`;
   const dlg=$("sheet");
-  const close=()=>{dlg.close()};
+  const close=()=>closeSheet();
   $("sh-close").onclick=close;$("sh-close2").onclick=close;
   dlg.onclick=ev=>{if(ev.target===dlg)close()};
-  dlg.onclose=()=>{st.sel=null;render(true)};
-  if(!dlg.open){try{dlg.showModal()}catch(_){dlg.setAttribute("open","")}}
+  dlg.onclose=()=>{
+    st.sel=null;
+    document.querySelectorAll(".prog.sel").forEach(b=>b.classList.remove("sel"));
+    if(history.state&&history.state.m==="sheet")history.back(); /* cerrada con Esc o desde la ficha */
+    const back=sheetFrom;sheetFrom=null;
+    if(back&&document.contains(back))back.focus({preventScroll:true});
+  };
+  if(!dlg.open){
+    sheetFrom=document.activeElement;
+    try{dlg.showModal()}catch(_){dlg.setAttribute("open","")}
+    if(!(history.state&&history.state.m==="sheet"))history.pushState({...(history.state||{}),m:"sheet"},"");
+    const first=dlg.querySelector(".btn.primary")||$("sh-close2");
+    if(isTV&&first)first.focus();
+  }
 }
 
 /* ---------- Buscador: canales, eventos deportivos y programas de las dos parrillas ----------
@@ -754,29 +780,223 @@ function renderSearch(){
   $("sr-body").querySelectorAll("[data-sel]").forEach(b=>b.onclick=()=>{st.sel=b.dataset.sel;showDetail()});
   $("sr-body").querySelectorAll("[data-ev]").forEach(b=>b.onclick=()=>{
     const e=DATA.eventos[+b.dataset.ev];
-    clearSearch();st.view="agenda";st.day=e.s.slice(0,10);st.sport=e.sport;save();render();
+    clearSearch();st.view="agenda";st.day=e.s.slice(0,10);st.sport=e.sport;histSet("replace");save();render();
     const idx=DATA.eventos.filter(x=>x.s.slice(0,10)===st.day&&x.sport===e.sport).indexOf(e);
     const card=$("list").querySelectorAll(".ev")[idx];
-    if(card){card.scrollIntoView({block:"center",behavior:"smooth"});card.classList.add("flash")}
+    if(card){card.scrollIntoView({block:"center",behavior:"smooth"});card.classList.add("flash");if(isTV)(card.querySelector("a,button")||card).focus({preventScroll:true})}
   });
   $("sr-body").querySelectorAll(".chans-r button").forEach(b=>b.onclick=()=>{
     const view=b.dataset.view,ci=+b.dataset.ci;
-    clearSearch();st.view=view;st.genre[view]="all";st.only[view]=false;st.sel=null;save();saveFavs();render();
+    clearSearch();st.view=view;st.genre[view]="all";st.only[view]=false;st.sel=null;histSet("replace");save();saveFavs();render();
     const row=$("track").querySelector(`.row[data-ci="${ci}"]`);
     const rows=[...$("track").querySelectorAll(".row")],i=rows.indexOf(row);
     const name=$("names").children[i+1];
-    if(name){name.scrollIntoView({block:"center",behavior:"smooth"});name.classList.add("flash");row.classList.add("flash")}
+    if(name){name.scrollIntoView({block:"center",behavior:"smooth"});name.classList.add("flash");row.classList.add("flash");if(isTV){fillRow(row);(firstVisibleProg(row)||name.querySelector(".star")).focus({preventScroll:true})}}
   });
 }
 let qTimer=null;
 function clearSearch(){st.q="";st.qf="all";$("q").value="";$("q-clear").hidden=true}
+function applyQuery(){
+  const v=$("q").value.trim();
+  if(v===st.q)return;
+  const was=st.q.length>=2;
+  st.q=v;
+  if(!was&&v.length>=2&&!(history.state&&history.state.m==="search"))history.pushState({view:st.view,m:"search"},"");
+  if(DATA)render();
+}
+/* Borrar la búsqueda: si abrió una entrada en el historial, se vuelve atrás para que Atrás no la repita */
+function endSearch(){
+  if(history.state&&history.state.m==="search")history.back();
+  else{clearSearch();render()}
+}
 $("q").addEventListener("input",()=>{
   clearTimeout(qTimer);
   $("q-clear").hidden=!$("q").value;
-  qTimer=setTimeout(()=>{const v=$("q").value.trim();if(v===st.q)return;st.q=v;if(!DATA)return;render()},180);
+  qTimer=setTimeout(applyQuery,180);
 });
-$("q").addEventListener("keydown",e=>{if(e.key==="Escape"){clearSearch();render()}});
-$("q-clear").onclick=()=>{clearSearch();render();$("q").focus()};
+$("q").addEventListener("keydown",e=>{
+  if(e.key==="Escape"){e.preventDefault();endSearch();return}
+  if(e.key==="Enter"){ /* tecla Buscar del teclado: busca ya, cierra el teclado y pasa a los resultados */
+    e.preventDefault();clearTimeout(qTimer);applyQuery();
+    $("q").blur();
+    if(isTV){$("q").readOnly=true;const r=$("sr-body").querySelector("button");if(r)r.focus()}
+  }
+});
+$("q-clear").onclick=()=>{endSearch();$("q").focus()};
+
+/* ---------- Tele: mando a distancia, botón Atrás y tamaño ----------
+   Se activa en Android sin pantalla táctil (TV box, Android TV, Google TV) o en cuanto se usan
+   las flechas sin haber tocado la pantalla. */
+let isTV=false, touched=false, sheetFrom=null;
+const UA=navigator.userAgent||"";
+function enableTV(){
+  if(isTV)return;
+  isTV=true;
+  document.documentElement.classList.add("tv");
+  tvZoom();
+  $("q").readOnly=true; /* el teclado solo se abre al pulsar OK sobre la caja */
+}
+function tvZoom(){ /* que se lea desde el sofá: la página ocupa lo mismo en una tele de 1080p que en una de 4K */
+  const z=Math.max(1,Math.min(2.2,innerWidth/900));
+  document.documentElement.style.zoom=z>1.04?String(z):"";
+}
+addEventListener("resize",()=>{if(isTV)tvZoom()});
+addEventListener("touchstart",()=>{touched=true},{passive:true,once:true});
+if((/Android/i.test(UA)&&navigator.maxTouchPoints===0)||/\b(Android TV|GoogleTV|SMART-TV|SmartTV|BRAVIA|AFT[A-Z]|MiBOX|Chromecast)\b/i.test(UA))enableTV();
+
+/* Caja de búsqueda en la tele: OK abre el teclado; al salir se vuelve a bloquear */
+let qOpening=false;
+function openKeyboard(){ /* quitar el bloqueo y volver a enfocar para que Android saque el teclado */
+  const q=$("q");
+  q.readOnly=false;qOpening=true;q.blur();q.focus();qOpening=false;
+  try{const n=q.value.length;q.setSelectionRange(n,n)}catch(_){}
+}
+$("q").addEventListener("click",()=>{if(isTV&&$("q").readOnly)openKeyboard()});
+$("q").addEventListener("keydown",e=>{if(isTV&&$("q").readOnly&&(e.key==="Enter"||e.key===" ")){e.preventDefault();e.stopImmediatePropagation();openKeyboard()}},true);
+$("q").addEventListener("blur",()=>{if(isTV&&!qOpening)$("q").readOnly=true});
+
+/* Historial: cada pestaña, la búsqueda y la ficha son un paso, así el botón Atrás del mando
+   (o del navegador) los deshace en orden antes de salir de la app. */
+function histSet(mode,first){
+  if(first&&history.state&&history.state.view){st.view=history.state.view} /* recarga: se mantiene la vista */
+  const s={view:st.view};
+  if(mode==="push")history.pushState(s,"");else history.replaceState(s,"");
+}
+function closeSheet(){
+  const dlg=$("sheet");
+  if(!dlg.open)return;
+  if(history.state&&history.state.m==="sheet")history.back();
+  else dlg.close();
+}
+addEventListener("popstate",e=>{
+  const s=e.state||{};
+  const dlg=$("sheet");
+  if(dlg.open&&s.m!=="sheet"){dlg.close();return}
+  let changed=false;
+  if(st.q&&s.m!=="search"){clearSearch();changed=true}
+  if(s.view&&s.view!==st.view){st.view=s.view;st.sel=null;save();changed=true}
+  if(changed){render();if(isTV)focusDefault()}
+});
+addEventListener("keydown",e=>{ /* teclas de "atrás" que algunos mandos envían a la página */
+  if((e.key==="BrowserBack"||e.key==="GoBack"||e.keyCode===4)&&history.length>1){e.preventDefault();history.back()}
+});
+
+/* Mantener el foco cuando la página se redibuja (cada minuto se actualiza "en directo") */
+function focusKey(el){
+  if(!el||el===document.body)return null;
+  for(const a of ["data-id","data-sel","data-ev","data-d","data-s","data-g","data-f","data-view"])
+    if(el.hasAttribute(a))return `[${a}="${CSS.escape(el.getAttribute(a))}"]`+(el.classList.contains("tab")?".tab":"");
+  return el.id?"#"+CSS.escape(el.id):null;
+}
+function keepFocus(fn){
+  const k=isTV?focusKey(document.activeElement):null;
+  const sl=$("scroller").scrollLeft;
+  fn();
+  if(!k)return;
+  let el=document.querySelector(k);
+  if(!el&&k.startsWith('[data-id="')){
+    const m=k.match(/^\[data-id="([^"]+)"\]/), ci=m&&m[1].split(":")[1].split("-")[0];
+    const row=ci!=null&&$("track").querySelector(`.row[data-ci="${ci}"]`);
+    if(row){fillRow(row);el=document.querySelector(k)}
+  }
+  if(el){el.focus({preventScroll:true});$("scroller").scrollLeft=sl}
+}
+function focusDefault(){
+  const t=document.querySelector('.tab[aria-selected="true"]')||document.querySelector(".tab");
+  if(t)t.focus();
+}
+
+/* Parrilla con el mando, como la guía de un decodificador */
+function progsOf(row){fillRow(row);return [...row.querySelectorAll(".prog")]}
+function firstVisibleProg(row){
+  const sc=$("scroller"),sl=sc.scrollLeft;
+  return progsOf(row).find(b=>b.offsetLeft+b.offsetWidth>sl+8)||progsOf(row)[0]||null;
+}
+function focusProg(b){
+  b.focus({preventScroll:true});
+  const sc=$("scroller"),L=b.offsetLeft,R=L+b.offsetWidth,vw=sc.clientWidth;
+  if(L<sc.scrollLeft)sc.scrollLeft=Math.max(0,L-24);
+  else if(R>sc.scrollLeft+vw)sc.scrollLeft=Math.min(L-24,R-vw+24);
+  b.scrollIntoView({block:"nearest",inline:"nearest"});
+}
+function gridKey(e,el){
+  const row=el.closest(".row");if(!row)return false;
+  const rows=[...$("track").querySelectorAll(".row")],ri=rows.indexOf(row);
+  const ps=progsOf(row),pi=ps.indexOf(el);
+  if(e.key==="ArrowRight"){if(pi<ps.length-1){focusProg(ps[pi+1]);return true}return true}
+  if(e.key==="ArrowLeft"){
+    if(pi>0){focusProg(ps[pi-1]);return true}
+    const star=$("names").children[ri+1]&&$("names").children[ri+1].querySelector(".star");
+    if(star){star.focus();return true}
+    return false;
+  }
+  if(e.key==="ArrowUp"||e.key==="ArrowDown"){
+    const to=rows[ri+(e.key==="ArrowDown"?1:-1)];
+    if(!to)return false; /* fuera de la parrilla: lo resuelve la navegación general */
+    const sc=$("scroller"),vis0=sc.scrollLeft,vis1=vis0+sc.clientWidth;
+    const a=Math.max(el.offsetLeft,vis0),b=Math.min(el.offsetLeft+el.offsetWidth,vis1);
+    const mid=a<b?(a+b)/2:el.offsetLeft+el.offsetWidth/2; /* se mantiene la hora que se está viendo */
+    const cand=progsOf(to);
+    if(!cand.length)return false;
+    let best=cand.find(p=>p.offsetLeft<=mid&&p.offsetLeft+p.offsetWidth>mid);
+    if(!best)best=cand.reduce((x,p)=>Math.abs(p.offsetLeft+p.offsetWidth/2-mid)<Math.abs(x.offsetLeft+x.offsetWidth/2-mid)?p:x);
+    focusProg(best);return true;
+  }
+  return false;
+}
+function starKey(e,el){ /* desde la estrella de favoritos, ▶ entra en la fila */
+  if(e.key!=="ArrowRight")return false;
+  const names=[...$("names").children],i=names.indexOf(el.closest("#names > div"));
+  const row=$("track").querySelectorAll(".row")[i-1];
+  const p=row&&firstVisibleProg(row);
+  if(p){focusProg(p);return true}
+  return false;
+}
+
+/* Navegación general con las flechas: busca el elemento más cercano en esa dirección */
+const FOCUSABLE='button:not([disabled]),a[href],input:not([type=hidden])';
+function visibleEl(el){
+  if(el.closest("[hidden]"))return false;
+  const r=el.getBoundingClientRect();
+  return r.width>0&&r.height>0;
+}
+function spatial(dir,from){
+  const scope=$("sheet").open?$("sheet"):document;
+  const all=[...scope.querySelectorAll(FOCUSABLE)].filter(el=>el!==from&&visibleEl(el)&&!(scope===document&&$("sheet").contains(el)));
+  if(!from||from===document.body||!document.contains(from)){
+    const t=scope===document&&document.querySelector('.tab[aria-selected="true"]');
+    return t&&visibleEl(t)?t:(all[0]||null);
+  }
+  const a=from.getBoundingClientRect(),ax=a.left+a.width/2,ay=a.top+a.height/2;
+  let best=null,bs=Infinity;
+  for(const el of all){
+    const b=el.getBoundingClientRect(),bx=b.left+b.width/2,by=b.top+b.height/2;
+    let main,cross;
+    if(dir==="ArrowDown"){if(b.top<a.bottom-4)continue;main=b.top-a.bottom;cross=Math.max(0,Math.max(a.left,b.left)-Math.min(a.right,b.right))?Math.abs(bx-ax):0}
+    else if(dir==="ArrowUp"){if(b.bottom>a.top+4)continue;main=a.top-b.bottom;cross=Math.max(0,Math.max(a.left,b.left)-Math.min(a.right,b.right))?Math.abs(bx-ax):0}
+    else if(dir==="ArrowRight"){if(b.left<a.right-4)continue;main=b.left-a.right;cross=Math.abs(by-ay)}
+    else{if(b.right>a.left+4)continue;main=a.left-b.right;cross=Math.abs(by-ay)}
+    const s=Math.max(0,main)+cross*(dir==="ArrowUp"||dir==="ArrowDown"?1.5:3);
+    if(s<bs){bs=s;best=el}
+  }
+  return best;
+}
+document.addEventListener("keydown",e=>{
+  if(!["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key))return;
+  if(!touched&&/Android/i.test(UA))enableTV(); /* en el ordenador las flechas siguen funcionando como siempre */
+  if(!isTV)return;
+  const el=document.activeElement;
+  if(el&&el.tagName==="INPUT"&&!el.readOnly&&(e.key==="ArrowLeft"||e.key==="ArrowRight"))return; /* moverse por el texto */
+  if(el&&el.classList&&el.classList.contains("prog")&&gridKey(e,el)){e.preventDefault();return}
+  if(el&&el.classList&&el.classList.contains("star")&&starKey(e,el)){e.preventDefault();return}
+  const to=spatial(e.key,el);
+  if(to){
+    e.preventDefault();
+    if(to.classList.contains("prog")){focusProg(to);return}
+    to.focus({preventScroll:true});
+    to.scrollIntoView({block:"nearest",inline:"nearest"});
+  }
+});
 /* PWA: service worker, instalación y aviso sin conexión */
 if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost")&&!/claude\.ai|claudeusercontent/.test(location.hostname)){
   navigator.serviceWorker.register("sw.js").catch(()=>{});

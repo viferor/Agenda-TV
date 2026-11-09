@@ -60,6 +60,9 @@ jobs:
       - name: Crear el proyecto Android
         run: npx cap add android
 
+      - name: Preparar para Android TV (inicio de la tele y banner)
+        run: python3 tv.py
+
       - name: Icono y pantalla de inicio
         run: npx @capacitor/assets generate --android --iconBackgroundColor "#1f4fd8" --iconBackgroundColorDark "#1f4fd8" --splashBackgroundColor "#1f4fd8" --splashBackgroundColorDark "#0d1220"
 
@@ -94,7 +97,7 @@ jobs:
           name: Agenda TV ${{ env.VERSION }}
           files: app-android/AgendaTV-${{ env.VERSION }}.apk
           body: |
-            App Android de Agenda TV: agenda deportiva en directo y parrillas de la TDT y de Movistar Plus+.
+            App Android de Agenda TV: agenda deportiva en directo y parrillas de la TDT y de Movistar Plus+. Funciona en móviles y en TV box, Android TV y Google TV (sale en el inicio de la tele y se maneja con el mando).
 
             **Instalar:** descarga `AgendaTV-${{ env.VERSION }}.apk` en el móvil o en el Android TV y ábrelo. Android pedirá permiso para instalar apps de origen desconocido la primera vez.
 

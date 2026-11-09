@@ -76,6 +76,14 @@ Es una web estática: no necesita build. En Vercel, *Add New → Project*, impor
 
 En [Releases](https://github.com/viferor/Agenda-TV/releases) está la APK para móviles y Android TV. Es una app hecha con Capacitor (carpeta `app-android/`) que abre la web de Vercel, así que la guía y los cambios de la web llegan sin reinstalar. Los enlaces a otras webs (YouTube, RTVE Play, Movistar Plus+…) se abren en su app o en el navegador.
 
+**En la tele** (TV box, Android TV, Google TV) la app sale en el inicio con su banner y se maneja con el mando. La web detecta que está en una tele (Android sin pantalla táctil, o al usar las flechas sin haber tocado la pantalla) y entonces:
+- agranda la interfaz y marca muy visible el elemento seleccionado;
+- en la parrilla, ◀ ▶ pasan al programa anterior o siguiente del canal, ▲ ▼ cambian de canal a la misma hora y OK abre la ficha;
+- la caja de búsqueda solo abre el teclado al pulsar OK; la tecla Buscar del teclado lo cierra y salta al primer resultado;
+- el botón Atrás cierra primero la ficha, luego la búsqueda y luego vuelve a la pestaña anterior antes de salir (también funciona en el navegador).
+
+La preparación del proyecto Android para la tele está en `app-android/tv.py`, que el workflow ejecuta después de generar el proyecto.
+
 La compila GitHub Actions (`.github/workflows/apk.yml`): al subir una etiqueta `vX.Y.Z` crea la release con `AgendaTV-X.Y.Z.apk`. Se firma siempre con la misma clave para que cada versión se instale encima de la anterior; la clave va en los secretos `ANDROID_KEYSTORE_B64` y `ANDROID_KEYSTORE_PASSWORD` del repositorio, nunca en el código.
 
 ## Instalar como app (PWA)
