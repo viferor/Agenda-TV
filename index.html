@@ -101,6 +101,38 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 .hint{font-size:.85rem;color:var(--muted)}
 @media (max-width:560px){.abroad li{grid-template-columns:1fr}}
 .empty{padding:28px 16px;text-align:center;color:var(--muted)}
+/* Buscador */
+.search{position:relative;display:flex;align-items:center}
+.search input{width:100%;font:inherit;font-size:1rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:11px 42px 11px 40px;-webkit-appearance:none;appearance:none}
+.search input::placeholder{color:var(--muted)}
+.search input:focus{outline:2px solid var(--accent);outline-offset:1px;border-color:transparent}
+.search .ico{position:absolute;left:13px;width:17px;height:17px;color:var(--muted);pointer-events:none}
+.search .clr{position:absolute;right:6px;border:0;background:var(--block);border-radius:999px;width:30px;height:30px;font-size:.95rem;line-height:1;color:var(--muted)}
+.sr-sec{display:grid;gap:8px}
+.sr-sec h3{margin:0;font-family:var(--display);font-weight:600;font-size:1.05rem;letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:baseline;gap:8px}
+.sr-sec h3 em{font-style:normal;font-family:var(--body);font-size:.8rem;color:var(--muted);letter-spacing:0;text-transform:none;font-weight:500}
+.sr-list{display:grid;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.sr{display:grid;grid-template-columns:84px 1fr;gap:2px 14px;padding:11px 14px;border:0;border-top:1px solid var(--line);background:none;text-align:left;width:100%;color:inherit;position:relative}
+.sr:first-child{border-top:0}
+.sr:hover{background:var(--block)}
+.sr .when{font-variant-numeric:tabular-nums;font-size:.8rem;color:var(--muted);line-height:1.3}
+.sr .when b{display:block;font-family:var(--display);font-size:1.25rem;color:var(--ink);font-weight:700}
+.sr .what{min-width:0;display:grid;gap:2px}
+.sr .what strong{font-weight:600;font-size:1rem;line-height:1.25}
+.sr .what span{font-size:.84rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sr .what span.why{white-space:normal}
+.search input::-webkit-search-cancel-button{-webkit-appearance:none;display:none}
+.chans-r mark,.sr mark{background:var(--accent-soft);color:inherit;border-radius:3px;padding:0 1px}
+.sr.live .when b{color:var(--live)}
+.sr.ev-r::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--c)}
+.chans-r{display:flex;flex-wrap:wrap;gap:6px}
+.chans-r button{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;font-weight:600;display:inline-flex;gap:8px;align-items:baseline}
+.chans-r button small{font-weight:500;color:var(--muted);font-size:.78rem}
+.sr-more{font-size:.82rem;color:var(--muted);margin:0}
+.flash{animation:flash 1.6s ease-out 1}
+@keyframes flash{0%,40%{background:var(--accent-soft)}100%{background:transparent}}
+@media (prefers-reduced-motion:reduce){.flash{animation:none;outline:2px solid var(--accent)}}
+@media (max-width:560px){.sr{grid-template-columns:70px 1fr;padding:10px 12px}}
 /* Parrilla */
 .grid-wrap{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:grid;grid-template-columns:148px 1fr}
 .names{border-right:1px solid var(--line);z-index:2;background:var(--surface)}
@@ -182,6 +214,12 @@ dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
     <div class="hdr-r"><div class="meta" id="meta">Cargando la guía…</div><button class="install ghost" id="refresh" title="Volver a descargar la guía ahora mismo">↻ Actualizar</button><button class="install" id="install" hidden>Instalar app</button></div>
   </header>
 
+  <div class="search" role="search">
+    <svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="8.5" cy="8.5" r="6"/><path d="m13 13 5 5" stroke-linecap="round"/></svg>
+    <input id="q" type="search" placeholder="Buscar canales, partidos, programas, películas, actores…" autocomplete="off" enterkeyhint="search" aria-label="Buscar en la guía">
+    <button class="clr" id="q-clear" aria-label="Borrar búsqueda" hidden>✕</button>
+  </div>
+
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" id="tab-agenda" aria-selected="true" data-view="agenda">Agenda deportiva</button>
     <button class="tab" role="tab" id="tab-tve" aria-selected="false" data-view="tve">Parrilla TDT</button>
@@ -194,6 +232,11 @@ dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
     <div class="sports" id="sports" aria-label="Elegir deporte"></div>
     <div id="abroad"></div>
     <div class="list" id="list"><div class="empty">Cargando…</div></div>
+  </section>
+
+  <section id="view-search" hidden style="display:grid;gap:16px" aria-live="polite">
+    <div class="sports" id="sr-filter" aria-label="Filtrar resultados"></div>
+    <div id="sr-body" style="display:grid;gap:18px"></div>
   </section>
 
   <section id="view-grid" hidden style="display:grid;gap:12px">
@@ -234,7 +277,7 @@ const GRIDS={
   tve:{name:"Parrilla TDT",chans:()=>DATA&&DATA.tve||[],
     note:"Toca un programa para ver su ficha. Los filtros de contenido agrupan los canales por lo que emiten (cine, series, deportes…). Los programas de pocos minutos aparecen como franjas estrechas."},
   mplus:{name:"Movistar Plus+",chans:()=>MP.data&&MP.data.mplus||[],
-    note:"Toca un programa para ver su ficha. Está todo el dial de Movistar Plus+ menos los canales de la TDT, que tienen su propia pestaña. Los filtros de contenido agrupan los canales por lo que emiten (cine, deportes…); los numerados (M+ Deportes 3, M+ Liga de Campeones 5…) solo emiten cuando hay varios partidos a la vez. Para verlos hace falta suscripción: el botón abre la web oficial."},
+    note:"Toca un programa para ver su ficha. Está todo el dial de Movistar Plus+ menos los canales de la TDT, que tienen su propia pestaña (salvo La Séptima, que está en el dial 7). Los filtros de contenido agrupan los canales por lo que emiten (cine, deportes…); los numerados (M+ Deportes 3, M+ Liga de Campeones 5…) solo emiten cuando hay varios partidos a la vez. Para verlos hace falta suscripción: el botón abre la web oficial."},
 };
 const MP={data:null,loading:false,error:false,days:null};
 function loadMplus(force){
@@ -245,7 +288,7 @@ function loadMplus(force){
   /* cache:"no-store" para que nunca se quede con una copia vieja de la guía */
   fetch("datos-mplus.json"+(force?"?v="+Date.now():""),{cache:"no-store"})
     .then(r=>{if(!r.ok)throw new Error(r.status);return r.json()})
-    .then(d=>{MP.data=d;MP.loading=false;MP.days=mpDays(d);render(true)})
+    .then(d=>{MP.data=d;MP.loading=false;MP.days=mpDays(d);IDX.mplus=null;render(true)})
     .catch(()=>{MP.loading=false;MP.error=true;render(true)});
 }
 /* Días que cubre la parrilla descargada: sirve para avisar si el archivo se ha quedado atrás
@@ -274,7 +317,7 @@ const GENRES=[
 ];
 const GENRE_OF={"Cine":"cine","Cortometrajes":"cine","Series":"series","Deportes":"deportes","Documentales":"docs",
   "Infantil":"infantil","Información":"noticias","Música":"musica"};
-const st={view:"agenda",day:null,sport:"all",sel:null,favs:new Set(),only:{tve:false,mplus:false},
+const st={q:"",qf:"all",view:"agenda",day:null,sport:"all",sel:null,favs:new Set(),only:{tve:false,mplus:false},
   genre:{tve:"all",mplus:"all"},cats:null,scroll:{}};
 try{const f=JSON.parse(localStorage.getItem("agendatv-favs")||"{}");st.favs=new Set(f.ids||[]);
   if(f.only&&typeof f.only==="object"){st.only.tve=!!f.only.tve;st.only.mplus=!!f.only.mplus}
@@ -330,7 +373,8 @@ function init(){
   if(st.view==="mplus")loadMplus();
   computeDays();
   document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
-    if(st.view===b.dataset.view)return;
+    if(st.q){clearSearch()}
+    else if(st.view===b.dataset.view)return;
     st.view=b.dataset.view;st.sel=null;save();render();
   });
   render();netState();
@@ -346,6 +390,7 @@ async function refresh(){
     const r=await fetch("datos.json?v="+Date.now(),{cache:"no-store"});
     if(!r.ok)throw new Error(r.status);
     DATA=await r.json();
+    IDX.tve=null;IDX.mplus=null;
     MP.data=null;MP.days=null;MP.error=false;MP.loading=false;
     setMeta();
     computeDays();
@@ -362,10 +407,14 @@ async function refresh(){
 $("refresh").onclick=refresh;
 
 function render(tick){
-  document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",b.dataset.view===st.view));
+  const searching=st.q.length>=2;
+  document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected",!searching&&b.dataset.view===st.view));
   const agenda=st.view==="agenda";
-  $("view-agenda").hidden=!agenda;
-  $("view-grid").hidden=agenda;
+  $("view-search").hidden=!searching;
+  $("days").hidden=searching;
+  $("view-agenda").hidden=searching||!agenda;
+  $("view-grid").hidden=searching||agenda;
+  if(searching){renderSearch();return}
   renderDays();
   if(agenda)renderAgenda();else renderGrid(tick);
 }
@@ -611,6 +660,123 @@ function showDetail(){
   dlg.onclose=()=>{st.sel=null;render(true)};
   if(!dlg.open){try{dlg.showModal()}catch(_){dlg.setAttribute("open","")}}
 }
+
+/* ---------- Buscador: canales, eventos deportivos y programas de las dos parrillas ----------
+   Busca sin distinguir mayúsculas ni tildes en todos los días de la guía, desde ahora en adelante.
+   Los programas coinciden por título, nombre de la serie o del episodio, y por dirección o reparto. */
+const norm=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();
+const IDX={tve:null,mplus:null};
+function buildIdx(view){
+  const out=[];
+  (GRIDS[view].chans()||[]).forEach((c,ci)=>(c.p||[]).forEach((p,pi)=>{
+    const cr=p.c?[p.c["Reparto"],p.c["Dirección"],p.c["Presentación"],p.c["Presentador"],p.c["Presentadores"]].filter(Boolean).join(" · "):"";
+    out.push({view,ci,pi,t:norm([p.t,p.sn,p.et].filter(Boolean).join(" ")),cr:norm(cr),crRaw:cr,e:wall(p.e),s:wall(p.s)});
+  }));
+  return out;
+}
+function hl(text,words){ /* resalta cada palabra buscada sin romper el escape */
+  text=String(text||"");
+  const n=norm(text), on=new Array(text.length).fill(false);
+  if(n.length!==text.length)return esc(text); /* texto con caracteres raros: sin resaltado */
+  [].concat(words).filter(Boolean).forEach(w=>{let i=n.indexOf(w);while(i>=0){for(let k=i;k<i+w.length;k++)on[k]=true;i=n.indexOf(w,i+w.length)}});
+  let out="",open=false;
+  for(let k=0;k<text.length;k++){
+    if(on[k]&&!open){out+="<mark>";open=true}else if(!on[k]&&open){out+="</mark>";open=false}
+    out+=esc(text[k]);
+  }
+  return out+(open?"</mark>":"");
+}
+function whenLab(ms,now){
+  const k=dayKey(ms),d=new Date(ms);
+  return k===dayKey(now)?"Hoy":k===dayKey(now+864e5)?"Mañana":`${DOW[d.getUTCDay()]} ${d.getUTCDate()} ${MON[d.getUTCMonth()]}`;
+}
+const SR_LIMIT=60;
+function renderSearch(){
+  const qRaw=st.q.trim(), q=norm(qRaw), words=q.split(/\s+/).filter(Boolean);
+  const now=nowWall();
+  const all=w=>words.every(x=>w.includes(x));
+  /* canales */
+  const chans=[];
+  ["tve","mplus"].forEach(view=>(GRIDS[view].chans()||[]).forEach((c,ci)=>{if(all(norm(c.name)))chans.push({view,ci,c})}));
+  /* eventos deportivos */
+  const evs=(DATA.eventos||[]).filter(e=>wall(e.e)>now&&all(norm([e.ev,e.comp,e.rnd,SPORT[e.sport]?.name,...e.ch.map(c=>c.c+" "+c.app)].join(" "))));
+  /* programas */
+  if(!MP.data&&!MP.loading&&!MP.error)loadMplus();
+  const progs=[];
+  ["tve","mplus"].forEach(view=>{
+    if(!GRIDS[view].chans().length)return;
+    if(!IDX[view])IDX[view]=buildIdx(view);
+    IDX[view].forEach(r=>{
+      if(r.e<=now)return;
+      if(all(r.t))progs.push({...r,rank:0});
+      else if(r.cr&&all(r.cr))progs.push({...r,rank:1});
+    });
+  });
+  progs.sort((a,b)=>a.rank-b.rank||a.s-b.s);
+  /* un canal que está en las dos parrillas (La Séptima) saldría repetido: se queda el de la TDT */
+  {const seen=new Set(),keep=[];
+   progs.forEach(r=>{const c=GRIDS[r.view].chans()[r.ci];const k=c.name+"|"+r.s;if(seen.has(k))return;seen.add(k);keep.push(r)});
+   progs.length=0;progs.push(...keep)}
+  const counts={all:chans.length+evs.length+progs.length,chans:chans.length,evs:evs.length,progs:progs.length};
+  const F=[["all","Todo"],["chans","Canales"],["evs","Deportes"],["progs","Programas"]];
+  $("sr-filter").innerHTML=F.map(([id,n])=>`<button class="chip" aria-pressed="${st.qf===id}" data-f="${id}">${n} <em>${counts[id]}</em></button>`).join("");
+  $("sr-filter").querySelectorAll(".chip").forEach(b=>b.onclick=()=>{st.qf=b.dataset.f;renderSearch()});
+  const show=k=>st.qf==="all"||st.qf===k;
+  let html="";
+  if(show("chans")&&chans.length){
+    html+=`<div class="sr-sec"><h3>Canales <em>${chans.length}</em></h3><div class="chans-r">${chans.map(o=>`<button data-view="${o.view}" data-ci="${o.ci}">${hl(o.c.name,words)}<small>${o.view==="tve"?"TDT":"Movistar Plus+"}</small></button>`).join("")}</div></div>`;
+  }
+  if(show("evs")&&evs.length){
+    const lim=st.qf==="evs"?evs.length:Math.min(evs.length,12);
+    html+=`<div class="sr-sec"><h3>Deportes en directo <em>${evs.length}</em></h3><div class="sr-list">${evs.slice(0,lim).map((e,i)=>{
+      const s=wall(e.s),live=now>=s&&now<wall(e.e),sp=SPORT[e.sport]||{};
+      const chs=[...new Set(e.ch.map(c=>c.c))].join(", ");
+      return `<button class="sr ev-r${live?" live":""}" style="--c:${sp.c}" data-ev="${DATA.eventos.indexOf(e)}"><div class="when">${live?"En directo":whenLab(s,now)}<b>${hhmm(e.s)}</b></div><div class="what"><strong>${hl(e.ev,words)}</strong><span>${esc(sp.short||sp.name||"")} · ${esc(e.comp)}</span><span>${esc(chs)}</span></div></button>`}).join("")}</div>${lim<evs.length?`<p class="sr-more">Mostrando ${lim} de ${evs.length}. Pulsa «Deportes» arriba para verlos todos.</p>`:""}</div>`;
+  }
+  if(show("progs")){
+    const lim=Math.min(progs.length,st.qf==="progs"?200:SR_LIMIT);
+    const loadingMp=!MP.data&&MP.loading;
+    if(progs.length){
+      html+=`<div class="sr-sec"><h3>Programas <em>${progs.length}</em></h3><div class="sr-list">${progs.slice(0,lim).map(r=>{
+        const c=GRIDS[r.view].chans()[r.ci],p=c.p[r.pi];
+        const live=now>=r.s&&now<r.e;
+        const name=p.sn||p.t;
+        const epi=p.se?`T${p.se}${p.ep?` E${p.ep}`:""}${p.et?` · ${p.et}`:""}`:(p.et||"");
+        const kind=KIND[(p.g||"").split(" · ")[0]]||"";
+        const why=r.rank===1?`<span class="why">${hl(r.crRaw,words)}</span>`:"";
+        return `<button class="sr${live?" live":""}" data-sel="${r.view}:${r.ci}-${r.pi}"><div class="when">${live?"En emisión":whenLab(r.s,now)}<b>${hhmm(p.s)}</b></div><div class="what"><strong>${hl(name,words)}</strong><span>${esc(c.name)}${r.view==="mplus"?" · Movistar Plus+":""}${kind?" · "+esc(kind):""}${epi?" · "+esc(epi):""}</span>${why}</div></button>`}).join("")}</div>${lim<progs.length?`<p class="sr-more">Mostrando ${lim} de ${progs.length}, los más próximos primero. Escribe algo más concreto para afinar.</p>`:""}</div>`;
+    }
+    if(loadingMp)html+='<p class="sr-more">Cargando también la parrilla de Movistar Plus+ para buscar en ella…</p>';
+  }
+  if(!html)html=`<div class="list"><div class="empty">No hay nada que coincida con «${esc(qRaw)}» desde ahora hasta el final de la guía.${!MP.data&&MP.loading?" Todavía se está cargando Movistar Plus+.":""}</div></div>`;
+  $("sr-body").innerHTML=html;
+  /* acciones */
+  $("sr-body").querySelectorAll("[data-sel]").forEach(b=>b.onclick=()=>{st.sel=b.dataset.sel;showDetail()});
+  $("sr-body").querySelectorAll("[data-ev]").forEach(b=>b.onclick=()=>{
+    const e=DATA.eventos[+b.dataset.ev];
+    clearSearch();st.view="agenda";st.day=e.s.slice(0,10);st.sport=e.sport;save();render();
+    const idx=DATA.eventos.filter(x=>x.s.slice(0,10)===st.day&&x.sport===e.sport).indexOf(e);
+    const card=$("list").querySelectorAll(".ev")[idx];
+    if(card){card.scrollIntoView({block:"center",behavior:"smooth"});card.classList.add("flash")}
+  });
+  $("sr-body").querySelectorAll(".chans-r button").forEach(b=>b.onclick=()=>{
+    const view=b.dataset.view,ci=+b.dataset.ci;
+    clearSearch();st.view=view;st.genre[view]="all";st.only[view]=false;st.sel=null;save();saveFavs();render();
+    const row=$("track").querySelector(`.row[data-ci="${ci}"]`);
+    const rows=[...$("track").querySelectorAll(".row")],i=rows.indexOf(row);
+    const name=$("names").children[i+1];
+    if(name){name.scrollIntoView({block:"center",behavior:"smooth"});name.classList.add("flash");row.classList.add("flash")}
+  });
+}
+let qTimer=null;
+function clearSearch(){st.q="";st.qf="all";$("q").value="";$("q-clear").hidden=true}
+$("q").addEventListener("input",()=>{
+  clearTimeout(qTimer);
+  $("q-clear").hidden=!$("q").value;
+  qTimer=setTimeout(()=>{const v=$("q").value.trim();if(v===st.q)return;st.q=v;if(!DATA)return;render()},180);
+});
+$("q").addEventListener("keydown",e=>{if(e.key==="Escape"){clearSearch();render()}});
+$("q-clear").onclick=()=>{clearSearch();render();$("q").focus()};
 /* PWA: service worker, instalación y aviso sin conexión */
 if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost")&&!/claude\.ai|claudeusercontent/.test(location.hostname)){
   navigator.serviceWorker.register("sw.js").catch(()=>{});

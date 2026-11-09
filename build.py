@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET, re, json, sys, datetime as dt, urllib.reques
 SRC = "https://raw.githubusercontent.com/davidmuma/EPG_dobleM/master/guiatv.xml"
 TVE = [  # TDT nacional sin canales infantiles, en orden aproximado del mando + Canal Sur
     ("La 1 HD","La 1"),("La 2","La 2"),("Antena 3 HD","Antena 3"),("Cuatro HD","Cuatro"),("Telecinco HD","Telecinco"),
-    ("La Sexta HD","laSexta"),("Canal Sur HD","Canal Sur"),("24 Horas","24h"),("Teledeporte","Teledeporte"),
+    ("La Sexta HD","laSexta"),("La Séptima","La Séptima"),("Canal Sur HD","Canal Sur"),("24 Horas","24h"),("Teledeporte","Teledeporte"),
     ("Neox","Neox"),("Nova","Nova"),("Mega","Mega"),("Atreseries","Atreseries"),
     ("Factoría de Ficción","FDF"),("Energy","Energy"),("Divinity","Divinity"),("Be Mad","Be Mad"),
     ("Ten","Ten"),("DMAX","DMAX"),("DKISS","DKISS"),("TRECE","TRECE"),("Real Madrid TV","Real Madrid TV"),
@@ -13,6 +13,7 @@ TVE = [  # TDT nacional sin canales infantiles, en orden aproximado del mando + 
     ("Replay","Replay"),("DBike","DBike"),
 ]
 MOVISTAR = [  # parrilla de Movistar Plus+, en el orden del dial de la plataforma
+    ('La Séptima', 'La Séptima'),  # dial 7: canal de la TDT que Movistar Plus+ también ofrece
     ('M+ Estrenos HD', 'M+ Estrenos'), ('M+ Hits HD', 'M+ Hits'), ('M+ Originales HD', 'M+ Originales'),
     ('M+ Terror', 'M+ Terror'), ('M+ Documentales HD', 'M+ Documentales'), ('M+ Romance', 'M+ Romance'),
     ('M+ Clásicos HD', 'M+ Clásicos'), ('M+ Acción HD', 'M+ Acción'), ('M+ Comedia HD', 'M+ Comedia'),
@@ -228,10 +229,10 @@ def main(path):
                 cat = CAT_GENRE.get(genre, "otros")
                 acc = catmin.setdefault(ch, {})
                 acc[cat] = acc.get(cat, 0) + (d1 - d0).total_seconds() / 60
-        if ch in tve:
-            tve[ch].append(ficha(title, start, stop, desc))
-        elif ch in mp:  # parrilla de Movistar Plus+
-            mp[ch].append(ficha(title, start, stop, desc))
+        if ch in tve or ch in mp:
+            f = ficha(title, start, stop, desc)
+            if ch in tve: tve[ch].append(f)
+            if ch in mp: mp[ch].append(f)  # parrilla de Movistar Plus+ (La Séptima está en las dos)
         sport = classify(title, cats(desc))
         if not sport: continue
         ev, rnd, comp, vo = parse_title(title)
