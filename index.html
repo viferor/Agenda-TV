@@ -858,6 +858,11 @@ $("q-clear").onclick=()=>{endSearch();$("q").focus()};
    con un código corto o con un archivo. El código marca los canales favoritos sobre la lista fija
    de canales que trae datos.json ("ids"), más las preferencias básicas, en base32 legible. */
 const B32="0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+function chanNames(){
+  if(DATA&&DATA.nombres)return DATA.nombres;
+  const o={};[...GRIDS.tve.chans(),...GRIDS.mplus.chans()].forEach(c=>{o[c.id]=c.name});
+  return o;
+}
 function chanIds(){
   if(DATA&&DATA.ids)return DATA.ids;
   const ids=[...GRIDS.tve.chans().map(c=>c.id),...GRIDS.mplus.chans().map(c=>c.id)];
@@ -915,7 +920,8 @@ function applyImport(o,mode){
 }
 /* Convierte nombres escritos a mano ("Antena 3", "m+ laliga") en los identificadores de canal */
 function matchChannels(list){
-  const all=[...GRIDS.tve.chans(),...GRIDS.mplus.chans()];
+  const nm=chanNames();
+  const all=Object.keys(nm).map(id=>({id,name:nm[id]}));
   const ids=chanIds();
   const key=s=>norm(s).replace(/\s+hd$/,"").replace(/[^a-z0-9+]/g,"");
   const out=[],unknown=[];
@@ -931,7 +937,8 @@ function matchChannels(list){
 const inApp=()=>!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
 function showMyData(){
   const code=makeCode(), n=st.favs.size;
-  const names=[...st.favs].slice(0,12).map(id=>{const c=[...GRIDS.tve.chans(),...GRIDS.mplus.chans()].find(c=>c.id===id);return c?c.name:id.replace(/ HD$/,"")});
+  const nm=chanNames();
+  const names=[...st.favs].slice(0,12).map(id=>nm[id]||id.replace(/ HD$/,""));
   $("sheet-body").innerHTML=`
     <div class="sh-top"><div class="sh-when"><b>Mis favoritos</b> · se guardan solos en este aparato</div><button class="sh-x" id="sh-close" aria-label="Cerrar">✕</button></div>
     <h2 id="sh-title">Pasar favoritos a otro aparato</h2>
@@ -946,7 +953,8 @@ function showMyData(){
     <div class="md-sec">
       <h3>Importar</h3>
       <input class="md-in" id="md-in" type="text" placeholder="AT…" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" aria-label="Código de favoritos">
-      <div class="sh-actions"><button class="btn primary" id="md-replace">Sustituir mis favoritos</button><button class="btn" id="md-add">Añadir a los míos</button><label class="btn" for="md-pick" tabindex="0" id="md-pick-l">Elegir archivo…</label><input type="file" id="md-pick" hidden></div>
+      <div class="sh-actions"><button class="btn primary" id="md-replace">Sustituir mis favoritos</button><button class="btn" id="md-add">Añadir a los míos</button>${isTV?"":'<label class="btn" for="md-pick" tabindex="0" id="md-pick-l">Elegir archivo…</label><input type="file" id="md-pick" hidden>'}</div>
+      ${isTV?'<p>En la tele, escribe el código: pulsa OK sobre la caja para sacar el teclado y, al terminar, la tecla de aceptar del teclado te lleva a «Sustituir mis favoritos».</p>':""}
       <div class="md-msg" id="md-msg" role="status"></div>
     </div>
     <div class="sh-actions"><button class="btn" id="sh-close2">Cerrar</button></div>`;
@@ -995,14 +1003,15 @@ function showMyData(){
   $("md-replace").onclick=()=>doImport("replace");
   $("md-add").onclick=()=>doImport("add");
   $("md-in").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("md-in").blur();$("md-replace").focus()}});
-  $("md-pick-l").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();$("md-pick").click()}});
-  $("md-pick").onchange=()=>{
+  if($("md-pick-l"))$("md-pick-l").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();$("md-pick").click()}});
+  if(isTV)tvInput($("md-in"));
+  if($("md-pick"))$("md-pick").onchange=()=>{
     const f=$("md-pick").files[0];if(!f)return;
     f.text().then(t=>{try{const r=applyImport(parse(t),"replace");render(true);showMyData();$("md-msg").textContent=r;$("md-msg").className="md-msg ok"}catch(e){msg(e.message||"No se ha podido leer el archivo.",false)}});
   };
   openSheet("#md-copy");
 }
-$("mydata").onclick=()=>{if(!DATA)return;if(!MP.data&&!MP.loading)loadMplus();showMyData()};
+$("mydata").onclick=()=>{if(!DATA)return;showMyData()}; /* sin descargar Movistar Plus+: en una TV box es lento */
 /* ---------- Tele: mando a distancia, botón Atrás y tamaño ----------
    Se activa en Android sin pantalla táctil (TV box, Android TV, Google TV) o en cuanto se usan
    las flechas sin haber tocado la pantalla. */
@@ -1024,15 +1033,21 @@ addEventListener("touchstart",()=>{touched=true},{passive:true,once:true});
 if((/Android/i.test(UA)&&navigator.maxTouchPoints===0)||/\b(Android TV|GoogleTV|SMART-TV|SmartTV|BRAVIA|AFT[A-Z]|MiBOX|Chromecast)\b/i.test(UA))enableTV();
 
 /* Caja de búsqueda en la tele: OK abre el teclado; al salir se vuelve a bloquear */
+/* Cajas de texto en la tele: bloqueadas al pasar por ellas; OK quita el bloqueo y saca el teclado */
 let qOpening=false;
-function openKeyboard(){ /* quitar el bloqueo y volver a enfocar para que Android saque el teclado */
-  const q=$("q");
+function openKeyboard(q){
+  q=q||$("q");
   q.readOnly=false;qOpening=true;q.blur();q.focus();qOpening=false;
   try{const n=q.value.length;q.setSelectionRange(n,n)}catch(_){}
 }
-$("q").addEventListener("click",()=>{if(isTV&&$("q").readOnly)openKeyboard()});
-$("q").addEventListener("keydown",e=>{if(isTV&&$("q").readOnly&&(e.key==="Enter"||e.key===" ")){e.preventDefault();e.stopImmediatePropagation();openKeyboard()}},true);
-$("q").addEventListener("blur",()=>{if(isTV&&!qOpening)$("q").readOnly=true});
+function tvInput(q){
+  if(q.dataset.tv)return;q.dataset.tv="1";
+  if(isTV)q.readOnly=true;
+  q.addEventListener("click",()=>{if(isTV&&q.readOnly)openKeyboard(q)});
+  q.addEventListener("keydown",e=>{if(isTV&&q.readOnly&&(e.key==="Enter"||e.key===" ")){e.preventDefault();e.stopImmediatePropagation();openKeyboard(q)}},true);
+  q.addEventListener("blur",()=>{if(isTV&&!qOpening)q.readOnly=true});
+}
+tvInput($("q"));
 
 /* Historial: cada pestaña, la búsqueda y la ficha son un paso, así el botón Atrás del mando
    (o del navegador) los deshace en orden antes de salir de la app. */

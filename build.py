@@ -258,7 +258,10 @@ def main(path):
         # "ids": todos los canales de las dos parrillas en un orden fijo; los códigos de copia de
         # favoritos de la web se basan en este orden (los canales nuevos se añaden al final).
         ids = list(dict.fromkeys([k for k, _ in TVE] + [k for k, _ in MOVISTAR]))
-        json.dump({"generado": gen_iso, "fuente": gen, "eventos": out_ev, "tve": tv, "ids": ids},
+        # "nombres": nombre visible de cada canal, para el panel de favoritos sin tener que descargar
+        # la parrilla de Movistar Plus+ (unos 10 MB, demasiado para aparatos lentos como un Mi Box).
+        nombres = dict([*TVE, *MOVISTAR])
+        json.dump({"generado": gen_iso, "fuente": gen, "eventos": out_ev, "tve": tv, "ids": ids, "nombres": nombres},
                   f, ensure_ascii=False, separators=(",", ":"))
     # El dial de Movistar Plus+ son ~150 canales con siete días de programación: va en su propio
     # archivo (datos-mplus.json) y la página lo descarga solo al abrir esa pestaña.
