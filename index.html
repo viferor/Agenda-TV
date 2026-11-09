@@ -145,16 +145,16 @@ html.tv .tv-hint{display:block}
 @media (prefers-reduced-motion:reduce){.flash{animation:none;outline:2px solid var(--accent)}}
 @media (max-width:560px){.sr{grid-template-columns:70px 1fr;padding:10px 12px}}
 /* Parrilla */
-.grid-wrap{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:grid;grid-template-columns:148px 1fr}
+.grid-wrap{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:grid;grid-template-columns:10.5rem 1fr}
 .names{border-right:1px solid var(--line);z-index:2;background:var(--surface)}
-.names div{height:56px;display:flex;align-items:center;gap:4px;padding:0 6px;font-family:var(--display);font-weight:700;font-size:1.15rem;border-top:1px solid var(--line)}
-.names .hcorner{height:30px;border-top:0;font-size:.75rem;color:var(--muted);font-family:var(--body);font-weight:500}
+.names div{height:4rem;display:flex;align-items:center;gap:4px;padding:0 6px;font-family:var(--display);font-weight:700;font-size:1.1rem;line-height:1.05;border-top:1px solid var(--line)}
+.names .hcorner{height:2rem;border-top:0;font-size:.75rem;color:var(--muted);font-family:var(--body);font-weight:500}
 .scroller{overflow-x:auto;position:relative;min-width:0}
 .track{position:relative}
-.hours{height:30px;position:relative}
-.hours span{position:absolute;top:7px;font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums;padding-left:5px;border-left:1px solid var(--line);height:23px}
-.row{height:56px;position:relative;border-top:1px solid var(--line)}
-.prog{position:absolute;top:5px;bottom:5px;background:var(--block);border:0;border-radius:6px;padding:5px 8px;text-align:left;overflow:hidden;display:grid;align-content:start;gap:1px;border-left:3px solid transparent}
+.hours{height:2rem;position:relative}
+.hours span{position:absolute;top:.45rem;font-size:.78rem;line-height:1.2;color:var(--muted);font-variant-numeric:tabular-nums;padding-left:5px;border-left:1px solid var(--line);height:1.55rem}
+.row{height:4rem;position:relative;border-top:1px solid var(--line)}
+.prog{position:absolute;top:.3rem;bottom:.3rem;background:var(--block);border:0;border-radius:6px;padding:.25rem .5rem;text-align:left;overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:.1rem;border-left:3px solid transparent}
 .prog:hover{background:var(--block-hover)}
 .prog.sel{border-left-color:var(--accent);background:var(--accent-soft)}
 .prog.onair{border-left-color:var(--live)}
@@ -165,8 +165,8 @@ html.tv .tv-hint{display:block}
 .prog.xs b,.prog.xs small{display:none}
 .prog.xs.sel,.prog.xs.onair{box-shadow:inset 0 -3px 0 var(--accent)}
 .prog.xs.onair{box-shadow:inset 0 -3px 0 var(--live)}
-.prog b{font-weight:600;font-size:.84rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.prog small{font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.prog b{flex:none;font-weight:600;font-size:.84rem;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog small{flex:none;font-size:.72rem;line-height:1.25;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .now{position:absolute;top:0;bottom:0;width:2px;background:var(--live);z-index:1;pointer-events:none}
 .now::before{content:"";position:absolute;top:0;left:-4px;width:10px;height:10px;border-radius:50%;background:var(--live)}
 dialog.sheet{border:0;padding:0;width:min(560px,calc(100% - 32px));max-height:min(86vh,760px);border-radius:14px;background:var(--surface);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.35)}
@@ -204,7 +204,7 @@ dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
 .bar{display:flex;gap:8px 16px;flex-wrap:wrap;align-items:center;justify-content:space-between}
 .star{border:0;background:none;padding:2px;font-size:1.05rem;line-height:1;color:var(--muted);flex:0 0 auto}
 .star[aria-pressed="true"]{color:var(--star)}
-.names span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.names span{min-width:0;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
 .favs .chip[aria-pressed="true"] .s{color:var(--star)}
 .grid-empty{grid-column:1/-1;padding:28px 16px;text-align:center;color:var(--muted)}
 .jump button{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:4px 10px;font-size:.85rem}
@@ -214,8 +214,8 @@ dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
   .ev{grid-template-columns:60px 1fr;padding:12px 14px}
   .time{font-size:1.35rem}
   .tab{font-size:.96rem;padding:10px 8px}
-  .grid-wrap{grid-template-columns:118px 1fr}
-  .names div{font-size:.92rem;padding:0 4px}
+  .grid-wrap{grid-template-columns:8rem 1fr}
+  .names div{font-size:.9rem;padding:0 4px}
 }
 </style>
 
@@ -508,7 +508,9 @@ function renderAgenda(){
 
 /* Parrilla en línea de tiempo: la misma función dibuja la TDT y Movistar Plus+ */
 function geo(){
-  const W=innerWidth<560?168:220; /* px por hora */
+  /* px por hora; crece si el sistema tiene la letra más grande (tablets, ajustes de accesibilidad) */
+  const fs=parseFloat(getComputedStyle(document.body).fontSize)||15;
+  const W=Math.round((innerWidth<560?168:220)*Math.max(1,fs/15));
   const d0=Date.UTC(...st.day.split("-").map((v,i)=>i===1?v-1:+v));
   return {W,d0,d1:d0+864e5,total:24*W,x:ms=>(ms-d0)/36e5*W};
 }
