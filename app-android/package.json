@@ -1,7 +1,7 @@
 {
   "name": "agenda-tv-android",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "App Android de Agenda TV: abre https://agenda-tv-viferor.vercel.app en una app propia",
   "devDependencies": {
     "@capacitor/android": "^7.4.0",
@@ -10,6 +10,7 @@
     "@capacitor/core": "^7.4.0"
   },
   "dependencies": {
-    "@capacitor/app": "^7.1.0"
+    "@capacitor/app": "^7.1.0",
+    "@capacitor/filesystem": "^7.1.0"
   }
 }
