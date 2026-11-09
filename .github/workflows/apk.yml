@@ -1,0 +1,101 @@
+name: APK Android
+
+# Compila la app Android de Agenda TV (Capacitor) y la publica como release de GitHub.
+# - Al subir una etiqueta vX.Y.Z (por ejemplo v1.0.0) crea la release "Agenda TV X.Y.Z" con la APK.
+# - También se puede lanzar a mano desde la pestaña Actions; entonces la APK queda como artefacto
+#   descargable de esa ejecución, sin crear release.
+# La app abre https://agenda-tv-viferor.vercel.app, así que no hace falta recompilarla cuando
+# cambia la web o la guía: solo cuando cambian el icono, el nombre o la configuración de la app.
+#
+# Firma: usa siempre la misma clave para que cada versión se instale encima de la anterior.
+# Necesita dos secretos del repositorio (Settings → Secrets and variables → Actions):
+#   ANDROID_KEYSTORE_B64       el archivo .jks codificado en base64
+#   ANDROID_KEYSTORE_PASSWORD  su contraseña (alias de la clave: agendatv)
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app-android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Comprobar que están los secretos de firma
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$KS_B64" ] || [ -z "$KS_PASS" ]; then
+            echo "::error::Faltan los secretos ANDROID_KEYSTORE_B64 y ANDROID_KEYSTORE_PASSWORD (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+
+      - name: Instalar Capacitor
+        run: npm install --no-audit --no-fund
+
+      - name: Crear el proyecto Android
+        run: npx cap add android
+
+      - name: Icono y pantalla de inicio
+        run: npx @capacitor/assets generate --android --iconBackgroundColor "#1f4fd8" --iconBackgroundColorDark "#1f4fd8" --splashBackgroundColor "#1f4fd8" --splashBackgroundColorDark "#0d1220"
+
+      - name: Número de versión
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then V="${GITHUB_REF_NAME#v}"; else V="0.0.${GITHUB_RUN_NUMBER}"; fi
+          echo "VERSION=$V" >> "$GITHUB_ENV"
+          sed -i -E "s/versionCode [0-9]+/versionCode ${GITHUB_RUN_NUMBER}/; s/versionName \"[^\"]*\"/versionName \"$V\"/" android/app/build.gradle
+          grep -E "versionCode|versionName" android/app/build.gradle
+
+      - name: Compilar
+        run: |
+          npx cap sync android
+          cd android && ./gradlew assembleRelease --no-daemon
+
+      - name: Firmar
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          echo "$KS_B64" | base64 -d > clave.jks
+          "$BT/zipalign" -p -f 4 android/app/build/outputs/apk/release/app-release-unsigned.apk alineada.apk
+          "$BT/apksigner" sign --ks clave.jks --ks-pass env:KS_PASS --ks-key-alias agendatv --out "AgendaTV-$VERSION.apk" alineada.apk
+          "$BT/apksigner" verify --print-certs "AgendaTV-$VERSION.apk"
+          rm -f clave.jks alineada.apk
+
+      - name: Publicar la release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Agenda TV ${{ env.VERSION }}
+          files: app-android/AgendaTV-${{ env.VERSION }}.apk
+          body: |
+            App Android de Agenda TV: agenda deportiva en directo y parrillas de la TDT y de Movistar Plus+.
+
+            **Instalar:** descarga `AgendaTV-${{ env.VERSION }}.apk` en el móvil o en el Android TV y ábrelo. Android pedirá permiso para instalar apps de origen desconocido la primera vez.
+
+            La app abre la web https://agenda-tv-viferor.vercel.app, así que la guía y las mejoras de la web llegan solas, sin reinstalar. Necesita conexión a internet la primera vez que se abre.
+
+      - name: Guardar la APK (ejecución manual)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: AgendaTV-${{ env.VERSION }}
+          path: app-android/AgendaTV-${{ env.VERSION }}.apk

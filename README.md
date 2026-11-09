@@ -72,6 +72,12 @@ Los horarios son los de España peninsular y corresponden al inicio de la emisi�
 
 Es una web estática: no necesita build. En Vercel, *Add New → Project*, importa este repositorio con el preset **Other**, sin comando de build y con la raíz como directorio de salida. Cada commit en `main` (incluida la actualización diaria de los datos) vuelve a desplegar la web automáticamente.
 
+## App Android (APK)
+
+En [Releases](https://github.com/viferor/Agenda-TV/releases) está la APK para móviles y Android TV. Es una app hecha con Capacitor (carpeta `app-android/`) que abre la web de Vercel, así que la guía y los cambios de la web llegan sin reinstalar. Los enlaces a otras webs (YouTube, RTVE Play, Movistar Plus+…) se abren en su app o en el navegador.
+
+La compila GitHub Actions (`.github/workflows/apk.yml`): al subir una etiqueta `vX.Y.Z` crea la release con `AgendaTV-X.Y.Z.apk`. Se firma siempre con la misma clave para que cada versión se instale encima de la anterior; la clave va en los secretos `ANDROID_KEYSTORE_B64` y `ANDROID_KEYSTORE_PASSWORD` del repositorio, nunca en el código.
+
 ## Instalar como app (PWA)
 
 - **Android (Chrome):** abre la web y pulsa *Instalar app* en la cabecera, o menú ⋮ → *Añadir a pantalla de inicio*.

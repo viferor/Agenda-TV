@@ -1,0 +1,12 @@
+{
+  "appId": "es.viferor.agendatv",
+  "appName": "Agenda TV",
+  "webDir": "www",
+  "server": {
+    "url": "https://agenda-tv-viferor.vercel.app",
+    "androidScheme": "https"
+  },
+  "android": {
+    "backgroundColor": "#1f4fd8"
+  }
+}
