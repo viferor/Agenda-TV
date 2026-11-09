@@ -178,6 +178,7 @@ dialog.sheet{border:0;padding:0;width:min(560px,calc(100% - 32px));max-height:mi
 .md-msg{font-size:.9rem;font-weight:600}
 .md-msg.ok{color:var(--tenis)}
 .md-msg.err{color:var(--live)}
+.toast{position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:50;background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:999px;font-weight:600;box-shadow:0 8px 30px rgba(0,0,0,.3);max-width:calc(100% - 32px);text-align:center}
 dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
 .sh-in{display:grid;gap:12px;padding:18px 20px 20px;overflow:auto;max-height:inherit}
 .sh-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
@@ -272,6 +273,8 @@ dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
 
   <p class="note">Horarios de España peninsular. La hora es la del inicio de la emisión, que suele empezar unos minutos antes del partido. Datos de la guía XMLTV pública EPG dobleM; solo aparecen las emisiones marcadas como directo.</p>
 </div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <dialog class="sheet" id="sheet" aria-labelledby="sh-title">
   <div class="sh-in" id="sheet-body"></div>
@@ -1036,6 +1039,8 @@ $("q").addEventListener("blur",()=>{if(isTV&&!qOpening)$("q").readOnly=true});
 function histSet(mode,first){
   if(first&&history.state&&history.state.view){st.view=history.state.view} /* recarga: se mantiene la vista */
   const s={view:st.view};
+  /* la primera entrada lleva "base": desde ahí, Atrás ya no tiene a dónde volver */
+  if(first||(mode==="replace"&&history.state&&history.state.base))s.base=true;
   if(mode==="push")history.pushState(s,"");else history.replaceState(s,"");
 }
 function closeSheet(){
@@ -1054,8 +1059,35 @@ addEventListener("popstate",e=>{
   if(changed){render();if(isTV)focusDefault()}
 });
 addEventListener("keydown",e=>{ /* teclas de "atrás" que algunos mandos envían a la página */
-  if((e.key==="BrowserBack"||e.key==="GoBack"||e.keyCode===4)&&history.length>1){e.preventDefault();history.back()}
+  if(e.key==="BrowserBack"||e.key==="GoBack"||e.keyCode===4){e.preventDefault();goBack()}
 });
+
+/* Botón Atrás: cierra la ficha o el panel, después borra la búsqueda, después vuelve a la sección
+   anterior y, ya en la primera, pide otra pulsación antes de salir de la app. */
+let toastTimer=null,lastBackAt=0;
+function toast(t,ms=2500){
+  const el=$("toast");el.textContent=t;el.hidden=false;
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>{el.hidden=true},ms);
+}
+function goBack(){
+  const dlg=$("sheet");
+  if(dlg.open){closeSheet();return}
+  if(st.q){endSearch();if(isTV)setTimeout(focusDefault,50);return}
+  const s=history.state||{};
+  if(!s.base&&history.length>1){history.back();return}
+  /* ya en la primera sección */
+  const App=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App;
+  if(!App||!App.exitApp)return; /* en el navegador no hay app que cerrar */
+  const now=Date.now();
+  if(now-lastBackAt<2500){$("toast").hidden=true;App.exitApp();return}
+  lastBackAt=now;
+  toast("Pulsa Atrás otra vez para salir");
+}
+/* En la app Android el botón Atrás del sistema llega como evento del plugin App (APK 1.2.0 o más nueva) */
+(function(){
+  const App=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App;
+  if(App&&App.addListener){try{App.addListener("backButton",()=>goBack())}catch(_){}}
+})();
 
 /* Mantener el foco cuando la página se redibuja (cada minuto se actualiza "en directo") */
 function focusKey(el){

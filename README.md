@@ -82,7 +82,7 @@ En [Releases](https://github.com/viferor/Agenda-TV/releases) está la APK para m
 - agranda la interfaz y marca muy visible el elemento seleccionado;
 - en la parrilla, ◀ ▶ pasan al programa anterior o siguiente del canal, ▲ ▼ cambian de canal a la misma hora y OK abre la ficha;
 - la caja de búsqueda solo abre el teclado al pulsar OK; la tecla Buscar del teclado lo cierra y salta al primer resultado;
-- el botón Atrás cierra primero la ficha, luego la búsqueda y luego vuelve a la pestaña anterior antes de salir (también funciona en el navegador). En la app lo hace posible el plugin `@capacitor/app` (desde la versión 1.2.0);
+- el botón Atrás cierra primero la ficha, luego la búsqueda y luego vuelve a la pestaña anterior antes de salir (también funciona en el navegador). En la primera sección, la app pide pulsar Atrás otra vez para salir. En la app lo hace posible el plugin `@capacitor/app` (desde la versión 1.2.0), cuyo evento `backButton` gestiona la propia web;
 - en la columna de canales, ▲ ▼ recorren las estrellas para marcar favoritos seguidos y ▶ entra en la fila.
 
 La preparación del proyecto Android para la tele está en `app-android/tv.py`, que el workflow ejecuta después de generar el proyecto.
