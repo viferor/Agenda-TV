@@ -935,46 +935,110 @@ function matchChannels(list){
   return out;
 }
 const inApp=()=>!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform());
+/* Código corto: el favorito viaja por ntfy.sh (servicio público y gratuito de mensajes) en un "tema"
+   con nombre aleatorio; el otro aparato lo lee con el mismo código. ntfy.sh guarda los mensajes
+   unas 12 horas, así que el código corto caduca; el largo (AT0…) y el archivo no. */
+const SHORT_ABC="23456789ABCDEFGHJKMNPQRSTVWXYZ"; /* sin 0/O, 1/I/L ni U, que se confunden */
+const NTFY="https://ntfy.sh/agendatv-";
+function newShort(){const r=new Uint8Array(6);crypto.getRandomValues(r);return [...r].map(x=>SHORT_ABC[x%SHORT_ABC.length]).join("")}
+function cleanShort(t){
+  const s=String(t||"").toUpperCase().replace(/[\s-]/g,"").replace(/O/g,"0").replace(/[IL]/g,"1").replace(/U/g,"V");
+  return /^[0-9A-Z]{6}$/.test(s)&&[...s].every(c=>SHORT_ABC.includes(c))?s:null;
+}
+async function sendShort(){
+  const code=newShort();
+  const r=await fetch(NTFY+code,{method:"POST",body:JSON.stringify(exportObj())});
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  return code;
+}
+async function fetchShort(code){
+  const r=await fetch(NTFY+code+"/json?poll=1&since=all");
+  if(!r.ok)throw new Error("No se ha podido consultar el código (error "+r.status+"). Revisa la conexión.");
+  const lines=(await r.text()).split("\n").map(l=>{try{return JSON.parse(l)}catch(_){return null}}).filter(m=>m&&m.event==="message"&&m.message);
+  if(!lines.length)throw new Error("Ese código no existe o ha caducado (duran unas 12 horas). Crea otro en el aparato de origen.");
+  return lines[lines.length-1].message;
+}
+/* Buscar el archivo en la propia TV box (APK 1.3.0 o más nueva): Descargas, Documentos y memorias USB */
+async function findFileOnDevice(){
+  const FS=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Filesystem;
+  if(!FS)throw new Error("Esta versión de la app no puede leer archivos: instala la APK 1.3.0 o más nueva, o usa el código corto.");
+  try{const p=await FS.checkPermissions();if(p.publicStorage!=="granted")await FS.requestPermissions()}catch(_){}
+  const isFav=n=>/^agenda-tv-favoritos.*\.(json|txt)$/i.test(n)||/^favoritos.*\.(json|txt)$/i.test(n);
+  const places=[{directory:"EXTERNAL_STORAGE",path:"Download"},{directory:"EXTERNAL_STORAGE",path:"Documents"},
+    {directory:"DOCUMENTS",path:"AgendaTV"},{directory:"EXTERNAL_STORAGE",path:""}];
+  try{ /* memorias USB y tarjetas: /storage/XXXX-XXXX */
+    const st0=await FS.readdir({path:"file:///storage"});
+    (st0.files||[]).forEach(f=>{const n=typeof f==="string"?f:f.name;if(n&&!/^(emulated|self)$/.test(n)){places.push({path:`file:///storage/${n}`});places.push({path:`file:///storage/${n}/Download`})}});
+  }catch(_){}
+  let best=null;
+  for(const pl of places){
+    try{
+      const d=await FS.readdir(pl.directory?{path:pl.path,directory:pl.directory}:{path:pl.path});
+      for(const f of d.files||[]){
+        const n=typeof f==="string"?f:f.name, t=(f&&f.mtime)||0;
+        if(n&&isFav(n)&&(!best||t>best.t))best={...pl,name:n,t};
+      }
+    }catch(_){}
+  }
+  if(!best)throw new Error("No he encontrado ningún archivo agenda-tv-favoritos.json en Descargas, Documentos ni en una memoria USB.");
+  const path=best.path?best.path+"/"+best.name:best.name;
+  const r=await FS.readFile(best.directory?{path,directory:best.directory,encoding:"utf8"}:{path,encoding:"utf8"});
+  return {text:typeof r.data==="string"?r.data:"",where:(best.directory==="DOCUMENTS"?"Documentos/":"")+path.replace("file:///storage/","USB ")};
+}
 function showMyData(){
   const code=makeCode(), n=st.favs.size;
   const nm=chanNames();
   const names=[...st.favs].slice(0,12).map(id=>nm[id]||id.replace(/ HD$/,""));
+  const fileBtn=isTV
+    ?(inApp()?'<button class="btn" id="md-find">Buscar archivo en esta TV</button>':"")
+    :'<label class="btn" for="md-pick" tabindex="0" id="md-pick-l">Elegir archivo…</label><input type="file" id="md-pick" hidden>';
   $("sheet-body").innerHTML=`
     <div class="sh-top"><div class="sh-when"><b>Mis favoritos</b> · se guardan solos en este aparato</div><button class="sh-x" id="sh-close" aria-label="Cerrar">✕</button></div>
     <h2 id="sh-title">Pasar favoritos a otro aparato</h2>
-    <p class="sh-syn" style="margin:0">Tienes <b>${n}</b> canal${n===1?"":"es"} favorito${n===1?"":"s"}${n?`: ${esc(names.join(", "))}${n>12?"…":""}`:""}. El código también guarda tus filtros de favoritos y de contenido y el deporte elegido.</p>
+    <p class="sh-syn" style="margin:0">Tienes <b>${n}</b> canal${n===1?"":"es"} favorito${n===1?"":"s"}${n?`: ${esc(names.join(", "))}${n>12?"…":""}`:""}. También se pasan tus filtros de favoritos y de contenido y el deporte elegido.</p>
     <div class="md-sec">
-      <h3>Guardar</h3>
-      <div class="md-code" id="md-code">${esc(code)}</div>
-      <div class="sh-actions"><button class="btn primary" id="md-copy">Copiar código</button><button class="btn" id="md-file">${inApp()?"Guardar archivo":"Descargar archivo"}</button></div>
-      <p>Apunta o copia el código y escríbelo en el otro aparato, en «Importar». Da igual escribirlo en mayúsculas o minúsculas, y los guiones son opcionales. El archivo es un <b>.json</b> (texto) con la lista de tus canales favoritos; también vale un .txt que tenga dentro el código.</p>
+      <h3>Enviar</h3>
+      <div class="sh-actions"><button class="btn primary" id="md-short">Crear código corto</button><button class="btn" id="md-file">${inApp()?"Guardar archivo":"Descargar archivo"}</button></div>
+      <div id="md-short-out"></div>
       <div class="md-msg" id="md-save-msg" role="status"></div>
+      <details><summary class="sr-more" style="cursor:pointer">Código largo (no caduca, sin conexión)</summary>
+        <div style="display:grid;gap:8px;margin-top:8px"><div class="md-code" id="md-code">${esc(code)}</div><div class="sh-actions"><button class="btn" id="md-copy">Copiar código largo</button></div></div>
+      </details>
     </div>
     <div class="md-sec">
-      <h3>Importar</h3>
-      <input class="md-in" id="md-in" type="text" placeholder="AT…" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" aria-label="Código de favoritos">
-      <div class="sh-actions"><button class="btn primary" id="md-replace">Sustituir mis favoritos</button><button class="btn" id="md-add">Añadir a los míos</button>${isTV?"":'<label class="btn" for="md-pick" tabindex="0" id="md-pick-l">Elegir archivo…</label><input type="file" id="md-pick" hidden>'}</div>
-      ${isTV?'<p>En la tele, escribe el código: pulsa OK sobre la caja para sacar el teclado y, al terminar, la tecla de aceptar del teclado te lleva a «Sustituir mis favoritos».</p>':""}
+      <h3>Recibir</h3>
+      <input class="md-in" id="md-in" type="text" placeholder="Código de 6 caracteres" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" aria-label="Código de favoritos">
+      <div class="sh-actions"><button class="btn primary" id="md-replace">Sustituir mis favoritos</button><button class="btn" id="md-add">Añadir a los míos</button>${fileBtn}</div>
+      <p>${isTV?"Pulsa OK sobre la caja para sacar el teclado, escribe el código corto y acepta. ":""}Vale el código corto, el largo o, en la caja, una lista de canales separados por comas.${isTV&&inApp()?" «Buscar archivo» encuentra solo agenda-tv-favoritos.json en Descargas, Documentos o un USB.":""}</p>
       <div class="md-msg" id="md-msg" role="status"></div>
     </div>
     <div class="sh-actions"><button class="btn" id="sh-close2">Cerrar</button></div>`;
-  const msg=(t,ok)=>{const m=$("md-msg");m.textContent=t;m.className="md-msg "+(ok?"ok":"err")};
+  const msg=(t,ok)=>{const m=$("md-msg");m.textContent=t;m.className="md-msg "+(ok===null?"":ok?"ok":"err")};
+  const smsg=(t,ok)=>{const m=$("md-save-msg");m.textContent=t;m.className="md-msg "+(ok===null?"":ok?"ok":"err")};
+  $("md-short").onclick=async()=>{
+    const b=$("md-short");b.disabled=true;smsg("Creando código…",null);
+    try{
+      const c=await sendShort();
+      $("md-short-out").innerHTML=`<div class="md-code" style="font-size:2rem;text-align:center;letter-spacing:.25em">${c.slice(0,3)} ${c.slice(3)}</div>`;
+      smsg("Escribe este código en el otro aparato, en «Recibir». Sirve durante unas 12 horas.",true);
+    }catch(e){smsg("No se ha podido crear el código corto (sin conexión o servicio no disponible). Usa el código largo o el archivo.",false)}
+    finally{b.disabled=false}
+  };
   $("md-copy").onclick=async()=>{
     try{await navigator.clipboard.writeText(code);$("md-copy").textContent="Copiado ✓"}
     catch(_){const r=document.createRange();r.selectNodeContents($("md-code"));const s=getSelection();s.removeAllRanges();s.addRange(r);$("md-copy").textContent="Código seleccionado"}
   };
-  const smsg=(t,ok)=>{const m=$("md-save-msg");m.textContent=t;m.className="md-msg "+(ok?"ok":"err")};
   $("md-file").onclick=async()=>{
     const name="agenda-tv-favoritos.json", data=JSON.stringify(exportObj(),null,2);
     if(inApp()){
       /* En la app Android el navegador interno no descarga archivos: se escribe con el plugin
          Filesystem en Documentos/AgendaTV (desde la APK 1.3.0). */
       const FS=window.Capacitor.Plugins&&window.Capacitor.Plugins.Filesystem;
-      if(!FS){smsg("Esta versión de la app no puede guardar archivos: instala la APK 1.3.0 o más nueva. Mientras, usa «Copiar código».",false);return}
+      if(!FS){smsg("Esta versión de la app no puede guardar archivos: instala la APK 1.3.0 o más nueva. Mientras, usa el código corto.",false);return}
       try{
         await FS.writeFile({path:"AgendaTV/"+name,data,directory:"DOCUMENTS",encoding:"utf8",recursive:true});
-        smsg("Guardado en Documentos › AgendaTV › "+name+". Ábrelo desde «Elegir archivo…» en el otro aparato.",true);
-      }catch(e){smsg("No se ha podido guardar el archivo ("+(e&&e.message||"error")+"). Usa «Copiar código».",false)}
+        smsg("Guardado en Documentos › AgendaTV › "+name+".",true);
+      }catch(e){smsg("No se ha podido guardar el archivo ("+(e&&e.message||"error")+"). Usa el código corto.",false)}
       return;
     }
     const blob=new Blob([data],{type:"application/json"});
@@ -984,7 +1048,7 @@ function showMyData(){
   };
   /* Acepta el archivo .json de la app, un texto con el código AT… dentro, o una lista de canales
      (uno por línea o separados por comas), escritos con su nombre como salen en la parrilla. */
-  const parse=t=>{t=String(t||"").replace(/^\uFEFF/,"").trim();if(!t)throw new Error("Escribe o pega el código primero.");
+  const parse=t=>{t=String(t||"").replace(/^﻿/,"").trim();if(!t)throw new Error("Escribe el código primero.");
     if(t.startsWith("{")||t.startsWith("[")){
       let o;try{o=JSON.parse(t)}catch(_){throw new Error("El archivo parece JSON pero tiene un error de formato.")}
       if(Array.isArray(o))o={favoritos:o};
@@ -992,24 +1056,37 @@ function showMyData(){
       if(!Array.isArray(favs))throw new Error("El archivo no tiene una lista «favoritos».");
       return {...o,favoritos:matchChannels(favs)};
     }
-    const m=t.toUpperCase().match(/\bAT0[0-9A-Z\s-]{6,}/); /* los códigos siempre empiezan por AT0 */
+    const m=t.toUpperCase().match(/\bAT0[0-9A-Z\s-]{6,}/); /* los códigos largos siempre empiezan por AT0 */
     if(m)return readCode(m[0]);
     const names=t.split(/[\n,;]+/).map(x=>x.trim()).filter(Boolean);
     const favs=matchChannels(names);
     if(names.length>1||favs.length)return {favoritos:favs};
     return readCode(t);
   };
-  const doImport=mode=>{try{const o=parse($("md-in").value);const t=applyImport(o,mode);render(true);showMyData();$("md-msg").textContent=t;$("md-msg").className="md-msg ok"}catch(e){msg(e.message||"No se ha podido importar.",false)}};
+  const done=t=>{render(true);showMyData();$("md-msg").textContent=t;$("md-msg").className="md-msg ok";if(isTV)$("sh-close2").focus()};
+  const doImport=async mode=>{
+    const raw=$("md-in").value, sc=cleanShort(raw);
+    try{
+      let text=raw;
+      if(sc){msg("Buscando el código…",null);text=await fetchShort(sc)}
+      done(applyImport(parse(text),mode));
+    }catch(e){msg(e.message||"No se ha podido importar.",false)}
+  };
   $("md-replace").onclick=()=>doImport("replace");
   $("md-add").onclick=()=>doImport("add");
   $("md-in").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();$("md-in").blur();$("md-replace").focus()}});
   if($("md-pick-l"))$("md-pick-l").addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();$("md-pick").click()}});
   if(isTV)tvInput($("md-in"));
+  if($("md-find"))$("md-find").onclick=async()=>{
+    msg("Buscando el archivo…",null);
+    try{const f=await findFileOnDevice();done(applyImport(parse(f.text),"replace")+" (archivo: "+f.where+")")}
+    catch(e){msg(e.message||"No se ha podido leer el archivo.",false)}
+  };
   if($("md-pick"))$("md-pick").onchange=()=>{
     const f=$("md-pick").files[0];if(!f)return;
-    f.text().then(t=>{try{const r=applyImport(parse(t),"replace");render(true);showMyData();$("md-msg").textContent=r;$("md-msg").className="md-msg ok"}catch(e){msg(e.message||"No se ha podido leer el archivo.",false)}});
+    f.text().then(t=>{try{done(applyImport(parse(t),"replace"))}catch(e){msg(e.message||"No se ha podido leer el archivo.",false)}});
   };
-  openSheet("#md-copy");
+  openSheet(isTV?"#md-in":"#md-short");
 }
 $("mydata").onclick=()=>{if(!DATA)return;showMyData()}; /* sin descargar Movistar Plus+: en una TV box es lento */
 /* ---------- Tele: mando a distancia, botón Atrás y tamaño ----------
