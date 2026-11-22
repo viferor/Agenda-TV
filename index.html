@@ -236,6 +236,37 @@ dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
 .grid-empty{grid-column:1/-1;padding:28px 16px;text-align:center;color:var(--muted)}
 .jump button{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:4px 10px;font-size:.85rem}
 .note{font-size:.8rem;color:var(--muted);max-width:75ch}
+/* Vista en cajas: qué emite cada canal a una hora (ahora, tarde, noche…) con su sinopsis a la vista */
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;background:var(--surface);padding:3px;gap:2px}
+.seg button{border:0;background:none;border-radius:999px;padding:5px 14px;font-weight:600;font-size:.9rem;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.slots{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.slots .chip{padding:5px 12px}
+.slots .shift{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:4px 10px;font-size:.85rem}
+.at-lab{font-size:.9rem;color:var(--muted)}
+.at-lab b{color:var(--ink);font-family:var(--display);font-size:1.15rem;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;overflow:hidden;position:relative;border-left:4px solid var(--k,var(--line))}
+.cd-top{display:flex;align-items:center;gap:6px;padding:8px 10px 0 6px}
+.cd-ch{font-family:var(--display);font-weight:700;font-size:1.15rem;line-height:1.1;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cd-time{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cd-time.live{color:var(--live);font-weight:600}
+.cd-main{border:0;background:none;text-align:left;padding:6px 12px 10px;display:grid;gap:5px;align-content:start;flex:1;color:inherit}
+.cd-main:hover{background:var(--block)}
+.cd-tags{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;font-size:.8rem;color:var(--muted)}
+.cd-title{font-weight:700;font-size:1.08rem;line-height:1.25}
+.cd-ep{font-size:.84rem;color:var(--muted)}
+.cd-syn{font-size:.88rem;line-height:1.45;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.cd-syn.none{color:var(--muted);font-style:italic}
+.cd-left{font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.cd-next{border:0;border-top:1px solid var(--line);background:var(--bg);text-align:left;padding:7px 12px;font-size:.84rem;color:var(--muted);display:flex;gap:8px;align-items:baseline;min-width:0}
+.cd-next:hover{background:var(--block)}
+.cd-next b{color:var(--ink);font-variant-numeric:tabular-nums;flex:none}
+.cd-next span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+.cd-off{font-size:.85rem;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+html.tv .cards{grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
+html.tv :is(.cd-main,.cd-next):focus{background:var(--accent-soft);outline-offset:-3px}
+@media (max-width:560px){.cards{grid-template-columns:1fr}}
 @media (max-width:560px){
   h1{font-size:2rem}
   .ev{grid-template-columns:60px 1fr;padding:12px 14px}
@@ -278,6 +309,7 @@ dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
   </section>
 
   <section id="view-grid" hidden style="display:grid;gap:12px">
+    <div class="seg" id="layout" role="group" aria-label="Forma de ver la parrilla" style="justify-self:start"></div>
     <div class="bar"><div class="sports favs" id="favs" aria-label="Filtrar canales"></div><div class="jump" id="jump"></div></div>
     <div class="sports" id="genres" aria-label="Filtrar por contenido"></div>
     <div class="grid-wrap" id="gridwrap">
@@ -285,8 +317,10 @@ dialog.sheet::backdrop{background:rgba(8,12,22,.55)}
       <div class="scroller" id="scroller"><div class="track" id="track"></div></div>
       <div class="grid-empty" id="grid-msg" hidden></div>
     </div>
+    <div class="cards" id="cards" hidden></div>
+    <div id="cards-off" hidden></div>
     <p class="note" id="grid-note" style="margin:0"></p>
-    <p class="tv-hint" style="margin:0">Mando: ◀ ▶ programa anterior o siguiente · ▲ ▼ otro canal a la misma hora · OK abre la ficha · Atrás vuelve.</p>
+    <p class="tv-hint" id="tv-hint" style="margin:0">Mando: ◀ ▶ programa anterior o siguiente · ▲ ▼ otro canal a la misma hora · OK abre la ficha · Atrás vuelve.</p>
   </section>
 
   <p class="note">Horarios de España peninsular. La hora es la del inicio de la emisión, que suele empezar unos minutos antes del partido. Datos de la guía XMLTV pública EPG dobleM; solo aparecen las emisiones marcadas como directo.</p>
@@ -359,7 +393,7 @@ const GENRES=[
 const GENRE_OF={"Cine":"cine","Cortometrajes":"cine","Series":"series","Deportes":"deportes","Documentales":"docs",
   "Infantil":"infantil","Información":"noticias","Música":"musica"};
 const st={q:"",qf:"all",view:"agenda",day:null,sport:"all",sel:null,favs:new Set(),only:{tve:false,mplus:false},
-  genre:{tve:"all",mplus:"all"},cats:null,scroll:{}};
+  genre:{tve:"all",mplus:"all"},cats:null,scroll:{},layout:"linea",slot:null,shift:0};
 try{const f=JSON.parse(localStorage.getItem("agendatv-favs")||"{}");st.favs=new Set(f.ids||[]);
   if(f.only&&typeof f.only==="object"){st.only.tve=!!f.only.tve;st.only.mplus=!!f.only.mplus}
   else if(f.only){st.only.tve=true}}catch(e){}
@@ -368,10 +402,11 @@ try{const s=JSON.parse(localStorage.getItem("agendatv")||"{}");if(s.view)st.view
   if(s.genre&&typeof s.genre==="object"){
     if(s.genre.tve)st.genre.tve=s.genre.tve;
     if(s.genre.mplus)st.genre.mplus=s.genre.mplus;
-  }}catch(e){}
+  }
+  if(s.layout==="cajas")st.layout="cajas";}catch(e){}
 if(location.hash==="#tdt")st.view="tve";else if(location.hash==="#mplus")st.view="mplus";else if(location.hash==="#agenda")st.view="agenda";
 if(!GRIDS[st.view]&&st.view!=="agenda")st.view="agenda";
-function save(){try{localStorage.setItem("agendatv",JSON.stringify({view:st.view,sport:st.sport,genre:st.genre}))}catch(e){}}
+function save(){try{localStorage.setItem("agendatv",JSON.stringify({view:st.view,sport:st.sport,genre:st.genre,layout:st.layout}))}catch(e){}}
 
 /* "Hora de pared" de España en ms, para comparar sin líos de zonas horarias */
 function wall(iso){const [d,t]=iso.slice(0,16).split("T");const [Y,M,D]=d.split("-").map(Number);const [h,m]=t.split(":").map(Number);return Date.UTC(Y,M-1,D,h,m)}
@@ -468,7 +503,7 @@ function renderDays(){
     const d=new Date(k+"T12:00:00Z");
     const lab=k===today?"Hoy":k===tomorrow?"Mañana":DOW[d.getUTCDay()];
     return `<button class="day" aria-pressed="${k===st.day}" data-d="${k}"><small>${lab}</small><b>${d.getUTCDate()}</b><small>${MON[d.getUTCMonth()]}</small></button>`}).join("");
-  $("days").querySelectorAll(".day").forEach(b=>b.onclick=()=>{st.day=b.dataset.d;st.sel=null;st.scroll={};render()});
+  $("days").querySelectorAll(".day").forEach(b=>b.onclick=()=>{st.day=b.dataset.d;st.sel=null;st.scroll={};st.slot=null;st.shift=0;render()});
 }
 
 
@@ -593,7 +628,12 @@ function renderGrid(tick){
   const view=st.view, cfg=GRIDS[view]||GRIDS.tve;
   const list=cfg.chans();
   const {W,d0,total,x}=geo();
-  $("grid-note").textContent=cfg.note;
+  const cajas=st.layout==="cajas";
+  $("grid-note").textContent=cajas?CARDS_NOTE+(view==="mplus"?" Para ver estos canales hace falta suscripción.":""):cfg.note;
+  $("layout").innerHTML=`<button data-lay="cajas" aria-pressed="${cajas}">▦ Qué echan</button><button data-lay="linea" aria-pressed="${!cajas}">☰ Línea de tiempo</button>`;
+  $("layout").querySelectorAll("button").forEach(b=>b.onclick=()=>{if(st.layout===b.dataset.lay)return;st.layout=b.dataset.lay;st.sel=null;save();render(true)});
+  $("tv-hint").textContent=cajas?"Mando: las flechas se mueven por las cajas · OK abre la ficha con la sinopsis completa · Atrás vuelve.":"Mando: ◀ ▶ programa anterior o siguiente · ▲ ▼ otro canal a la misma hora · OK abre la ficha · Atrás vuelve.";
+  $("cards").hidden=$("cards-off").hidden=true;$("gridwrap").hidden=false;
   const nf=list.filter(c=>st.favs.has(c.id)).length, only=!!st.only[view];
   $("favs").innerHTML=`<button class="chip" aria-pressed="${!only}" data-f="0">Todos los canales</button><button class="chip" aria-pressed="${only}" data-f="1"><span class="s">★</span> Favoritos <em>${nf}</em></button>${nf>1?'<button class="chip" id="fav-order">↕ Ordenar</button>':""}`;
   if($("fav-order"))$("fav-order").onclick=()=>showOrder();
@@ -604,6 +644,7 @@ function renderGrid(tick){
     $("names").innerHTML="";$("track").innerHTML="";$("jump").innerHTML="";
     if(!keepFilters)$("genres").innerHTML=""; /* si es un filtro sin resultados, se dejan los chips para poder cambiarlo */
     $("names").hidden=$("scroller").hidden=true;
+    $("gridwrap").hidden=false;$("cards").hidden=$("cards-off").hidden=true;
     msg.innerHTML=text; msg.hidden=false;
   };
   if(view==="mplus"&&!MP.data){ /* esta parrilla es grande y va en su propio archivo */
@@ -645,10 +686,11 @@ function renderGrid(tick){
   $("names").hidden=$("scroller").hidden=!chans.length;
   if(!chans.length){
     if(only&&gsel!=="all")empty(`No hay canales de ${esc(gname)} entre tus favoritos este día.`,true);
-    else if(only)empty('Aún no tienes canales favoritos. Pulsa «Todos los canales» y toca la ☆ junto al nombre de un canal para añadirlo.',true);
+    else if(only)empty(`Aún no tienes canales favoritos. Pulsa «Todos los canales» y toca la ☆ junto al nombre de un canal para añadirlo.`,true);
     else empty(`No hay canales de ${esc(gname)} este día en esta parrilla.`,true);
     return;
   }
+  if(cajas){renderCards(view,chans);return}
   $("names").innerHTML='<div class="hcorner">Canal</div>'+chans.map(({c})=>{const on=st.favs.has(c.id);return `<div><button class="star" aria-pressed="${on}" aria-label="${on?"Quitar":"Añadir"} ${esc(c.name)} ${on?"de":"a"} favoritos" data-id="${esc(c.id)}">${on?"★":"☆"}</button><span>${esc(c.name)}</span></div>`}).join("");
   $("names").querySelectorAll(".star").forEach(b=>b.onclick=()=>{
     const id=b.dataset.id, stars=[...$("names").querySelectorAll(".star")], i=stars.indexOf(b), hadFocus=document.activeElement===b;
@@ -676,6 +718,84 @@ function renderGrid(tick){
   if(tick&&st.scroll[view]!=null){sc.scrollLeft=st.scroll[view]}
   else{const h=nowLine?(now-d0)/36e5-.5:7;sc.scrollLeft=Math.max(0,h*W);st.scroll[view]=sc.scrollLeft}
   pinText();
+}
+
+/* ---------- Vista «Qué echan»: una caja por canal con lo que emite a la hora elegida ----------
+   Franjas fijas (la noche es la del prime time) que se pueden mover de hora en hora. */
+const SLOTS=[{id:"now",n:"Ahora"},{id:"manana",n:"Mañana",h:10},{id:"mediodia",n:"Mediodía",h:14.5},
+  {id:"tarde",n:"Tarde",h:18},{id:"noche",n:"Noche",h:22.5},{id:"madrugada",n:"Madrugada",h:25}];
+const CARDS_NOTE="Cada caja enseña lo que emite el canal a la hora elegida y lo que viene después. Toca una caja para abrir la ficha completa (sinopsis, reparto, nota…). La franja de Noche es la del prime time (22:30) y Madrugada es la 1:00 de la noche de ese día; con −1 h / +1 h se ajusta la hora.";
+const KIND_COLOR={"Cine":"var(--motor)","Series":"var(--accent)","Deportes":"var(--tenis)","Información":"var(--live)","Infantil":"var(--ciclismo)","Documentales":"var(--champions)","Música":"var(--laliga)","Cortometrajes":"var(--motor)"};
+const fmtMs=ms=>new Date(ms).toISOString().slice(11,16);
+const pName=p=>p.sn||p.t;
+/* programa que se emite en el instante ref y el siguiente (los programas vienen ordenados por hora) */
+function progAt(c,ref){
+  const ps=c.p||[];
+  let cur=-1,nxt=-1;
+  for(let i=0;i<ps.length;i++){
+    const s=wall(ps[i].s),e=wall(ps[i].e);
+    if(s<=ref&&e>ref){cur=i;continue}
+    if(s>ref){nxt=i;break}
+  }
+  return {cur,nxt};
+}
+function renderCards(view,chans){
+  const now=nowWall(), today=dayKey(now), isToday=st.day===today;
+  const d0=Date.UTC(...st.day.split("-").map((v,i)=>i===1?v-1:+v));
+  if(!st.slot||(st.slot==="now"&&!isToday))st.slot=isToday?"now":"noche";
+  const slot=SLOTS.find(s=>s.id===st.slot)||SLOTS[4];
+  const live=slot.id==="now"&&!st.shift;
+  const ref=slot.id==="now"?now+st.shift*36e5:d0+(slot.h+st.shift)*36e5;
+  /* franjas y ajuste de hora */
+  const refDay=dayKey(ref), dayW=refDay===today?"hoy":refDay===dayKey(now+864e5)?"mañana":(()=>{const d=new Date(ref);return `el ${DOW[d.getUTCDay()]} ${d.getUTCDate()}`})();
+
+  $("jump").innerHTML=`<div class="slots">${SLOTS.filter(s=>s.id!=="now"||isToday).map(s=>`<button class="chip" data-slot="${s.id}" aria-pressed="${st.slot===s.id}">${s.id==="now"?'<i style="--c:var(--live)"></i>':""}${s.n}</button>`).join("")}
+    <button class="shift" data-sh="-1" aria-label="Una hora antes">−1 h</button><button class="shift" data-sh="1" aria-label="Una hora después">+1 h</button>
+    <span class="at-lab">${live?`Emitiendo <b>ahora</b> · ${fmtMs(now)}`:`Emitiendo ${dayW} a las <b>${fmtMs(ref)}</b>`}</span></div>`;
+  $("jump").querySelectorAll("[data-slot]").forEach(b=>b.onclick=()=>{st.slot=b.dataset.slot;st.shift=0;render(true)});
+  $("jump").querySelectorAll("[data-sh]").forEach(b=>b.onclick=()=>{st.shift+=+b.dataset.sh;render(true)});
+  $("gridwrap").hidden=true;
+  const cards=[], off=[];
+  chans.forEach(({c,ci})=>{
+    const {cur,nxt}=progAt(c,ref);
+    if(cur<0){off.push(c);return}
+    const p=c.p[cur], s=wall(p.s), e=wall(p.e), onair=now>=s&&now<e;
+    const [g1,...gr]=(p.g||"").split(" · ");
+    const kind=KIND[g1]||g1||"";
+    const fav=st.favs.has(c.id);
+    const epi=p.se?`T${p.se}${p.ep?` · E${p.ep}`:""}${p.et?` · ${p.et}`:""}`:(p.sn&&p.t!==p.sn?p.t:(p.et||""));
+    const tags=[kind?`<span class="kind">${esc(kind)}</span>`:"",gr.length?`<span>${esc(gr.join(" · "))}</span>`:"",p.y?`<span>${esc(p.y)}</span>`:"",p.a?`<span class="age">${esc(p.a)}</span>`:"",p.r?`<span class="score">${esc(p.r)}/10</span>`:""].join("");
+    const pct=onair?Math.round((now-s)/(e-s)*100):0, left=Math.max(0,Math.round((e-now)/6e4));
+    const np=nxt>=0?c.p[nxt]:null;
+    cards.push(`<div class="card" style="--k:${KIND_COLOR[g1]||"var(--line)"}">
+      <div class="cd-top"><button class="star" aria-pressed="${fav}" aria-label="${fav?"Quitar":"Añadir"} ${esc(c.name)} ${fav?"de":"a"} favoritos" data-id="${esc(c.id)}">${fav?"★":"☆"}</button><span class="cd-ch">${esc(c.name)}</span><span class="cd-time${onair?" live":""}">${onair?"● ":""}${hhmm(p.s)}–${hhmm(p.e)}</span></div>
+      <button class="cd-main" data-card="${view}:${ci}" data-p="${view}:${ci}-${cur}" aria-label="${esc(c.name+": "+pName(p))}">
+        ${tags?`<span class="cd-tags">${tags}</span>`:""}
+        <span class="cd-title">${esc(pName(p))}</span>
+        ${epi?`<span class="cd-ep">${esc(epi)}</span>`:""}
+        ${p.d?`<span class="cd-syn">${esc(p.d)}</span>`:'<span class="cd-syn none">Sin sinopsis en la guía.</span>'}
+        ${onair?`<span class="prog-bar" aria-hidden="true" style="display:block"><i style="width:${pct}%"></i></span><span class="cd-left">${left?`Quedan ${left>=60?Math.floor(left/60)+" h "+(left%60)+" min":left+" min"}`:"Terminando"}</span>`:""}
+      </button>
+      ${np?`<button class="cd-next" data-next="${view}:${ci}" data-p="${view}:${ci}-${nxt}">Después <b>${hhmm(np.s)}</b><span>${esc(pName(np))}</span></button>`:""}
+    </div>`);
+  });
+  const box=$("cards"), offBox=$("cards-off");
+  box.innerHTML=cards.join("");
+  box.hidden=!cards.length;
+  offBox.innerHTML=off.length?`<div class="cd-off"><b>Sin programa en la guía a esta hora (${off.length}):</b> ${off.map(c=>esc(c.name)).join(" · ")}</div>`:"";
+  offBox.hidden=!off.length;
+  if(!cards.length){offBox.hidden=false;if(!off.length)offBox.innerHTML='<div class="cd-off">No hay programas a esta hora.</div>'}
+  box.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{st.sel=b.dataset.p;showDetail()});
+  box.querySelectorAll(".star").forEach(b=>b.onclick=()=>{
+    const id=b.dataset.id, stars=[...box.querySelectorAll(".star")], i=stars.indexOf(b);
+    st.favs.has(id)?st.favs.delete(id):st.favs.add(id);saveFavs();
+    render(true);
+    if(isTV||document.activeElement===document.body){
+      const all=[...$("cards").querySelectorAll(".star")];
+      const el=all.find(s=>s.dataset.id===id)||all[Math.min(i,all.length-1)];
+      if(el)el.focus({preventScroll:true});
+    }
+  });
 }
 
 let pinQ=false;
@@ -1340,7 +1460,7 @@ function goBack(){
 /* Mantener el foco cuando la página se redibuja (cada minuto se actualiza "en directo") */
 function focusKey(el){
   if(!el||el===document.body)return null;
-  for(const a of ["data-id","data-sel","data-ev","data-d","data-s","data-g","data-f","data-view"])
+  for(const a of ["data-card","data-next","data-slot","data-lay","data-id","data-sel","data-ev","data-d","data-s","data-g","data-f","data-view"])
     if(el.hasAttribute(a))return `[${a}="${CSS.escape(el.getAttribute(a))}"]`+(el.classList.contains("tab")?".tab":"");
   return el.id?"#"+CSS.escape(el.id):null;
 }
@@ -1351,7 +1471,7 @@ function keepFocus(fn){
   if(!k)return;
   let el=document.querySelector(k);
   if(!el&&k.startsWith('[data-id="')){
-    const m=k.match(/^\[data-id="([^"]+)"\]/), ci=m&&m[1].split(":")[1].split("-")[0];
+    const m=k.match(/^\[data-id="([^"]+)"\]/), ci=m&&m[1].includes(":")?m[1].split(":")[1].split("-")[0]:null;
     const row=ci!=null&&$("track").querySelector(`.row[data-ci="${ci}"]`);
     if(row){fillRow(row);el=document.querySelector(k)}
   }
